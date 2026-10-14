@@ -1,0 +1,155 @@
+openapi: 3.0.3
+info:
+  title: PC Control
+  version: "1"
+  description: |
+    REST API of the PC Control tray app. Live input uses the WebSocket channel in websocket.md.
+    Authentication is the `pc_device` cookie or an `Authorization: Bearer` token (see pairing.md).
+servers:
+  - url: http://{host}:48123
+    variables:
+      host:
+        default: 192.168.1.10
+paths:
+  /api/info:
+    get:
+      summary: Identify the PC app (public)
+      security: []
+      responses:
+        "200":
+          description: Always available on the home network.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Info"
+  /api/pair:
+    post:
+      summary: Exchange a PIN for a device token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PairRequest"
+      responses:
+        "200":
+          description: Paired. A cookie is set; the body has `token` only when `issueBearerToken` was true.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        "401":
+          description: Wrong, expired or missing PIN (`error` = `invalid_pin`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Not on the home network, bad Host header, or foreign Origin.
+        "429":
+          description: Too many failed attempts (`error` = `locked_out`).
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+              description: Seconds until pairing is allowed again.
+  /api/session:
+    get:
+      summary: The calling device
+      responses:
+        "200":
+          description: The paired device behind the token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        "401":
+          description: Missing, unknown or revoked token.
+    delete:
+      summary: Forget this device (revoke its own token)
+      responses:
+        "204":
+          description: Removed. The cookie is cleared.
+        "401":
+          description: Missing, unknown or revoked token.
+  /api/capabilities:
+    get:
+      summary: Which features this PC offers right now
+      description: A feature is `true` only if it exists in this build and its config toggle is on.
+      responses:
+        "200":
+          description: Feature name to availability.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: boolean
+                example:
+                  trackpad: false
+                  keyboard: false
+                  power: false
+        "401":
+          description: Missing, unknown or revoked token.
+security:
+  - deviceCookie: []
+  - bearer: []
+components:
+  securitySchemes:
+    deviceCookie:
+      type: apiKey
+      in: cookie
+      name: pc_device
+    bearer:
+      type: http
+      scheme: bearer
+  schemas:
+    Info:
+      type: object
+      required: [app, protocolVersion, paused]
+      properties:
+        app:
+          type: string
+          example: pc-control
+        protocolVersion:
+          type: integer
+          example: 1
+        paused:
+          type: boolean
+          description: True while the tray kill switch is on.
+    PairRequest:
+      type: object
+      required: [pin]
+      properties:
+        pin:
+          type: string
+          pattern: "^[0-9]{6}$"
+        deviceName:
+          type: string
+          maxLength: 64
+          description: Shown in the tray's device list. Defaults to "Phone".
+        issueBearerToken:
+          type: boolean
+          default: false
+          description: Native apps set this to receive the token in the response body.
+    Session:
+      type: object
+      required: [deviceId, deviceName, paused]
+      properties:
+        deviceId:
+          type: string
+          format: uuid
+        deviceName:
+          type: string
+        paused:
+          type: boolean
+        token:
+          type: string
+          description: Only present in the pairing response, and only when requested.
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
