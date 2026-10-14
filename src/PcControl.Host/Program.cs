@@ -1,4 +1,6 @@
 using PcControl.Core.Config;
+using PcControl.Windows;
+using Microsoft.Extensions.Logging;
 using PcControl.Core.Pairing;
 using PcControl.Host.Tray;
 using PcControl.Host.Web;
@@ -78,7 +80,10 @@ internal static class Program
         var state = new RemoteControlState();
         var connections = new DeviceConnections();
 
-        var app = ServerFactory.Build(config, pins, limiter, registry, state, connections);
+        var injector = new SendInputInjector(new Serilog.Extensions.Logging.SerilogLoggerFactory(Log.Logger).CreateLogger<SendInputInjector>());
+        Log.Information("Per-monitor DPI awareness (v2): {Aware}", DpiAwareness.IsPerMonitorV2());
+
+        var app = ServerFactory.Build(config, pins, limiter, registry, state, connections, injector);
 
         try
         {
@@ -97,7 +102,7 @@ internal static class Program
 
         Log.Information("Listening on port {Port}", config.Port);
 
-        using (var tray = new TrayApplicationContext(config, pins, registry, state))
+        using (var tray = new TrayApplicationContext(config, pins, registry, state, connections))
         {
             Application.Run(tray);
         }

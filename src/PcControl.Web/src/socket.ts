@@ -4,6 +4,8 @@ export type LinkState = "connecting" | "connected" | "paused" | "reconnecting" |
 
 export interface LinkEvents {
   onState: (state: LinkState) => void;
+  /** The server refused or could not apply a message (for example an unknown key). */
+  onServerError?: (code: string) => void;
 }
 
 const PING_INTERVAL_MS = 10_000;
@@ -30,6 +32,17 @@ export class Link {
   connect(): void {
     this.closedByUser = false;
     this.connectNow();
+  }
+
+  /** Sends a frame if the socket is open. Input is never queued: stale input is worse than none. */
+  send(data: string | ArrayBuffer): boolean {
+    if (this.socket?.readyState !== WebSocket.OPEN) return false;
+    this.socket.send(data);
+    return true;
+  }
+
+  get isOpen(): boolean {
+    return this.socket?.readyState === WebSocket.OPEN;
   }
 
   close(): void {
@@ -67,9 +80,9 @@ export class Link {
 
   private handleMessage(data: unknown): void {
     if (typeof data !== "string") return;
-    let message: { type?: string; paused?: boolean };
+    let message: { type?: string; paused?: boolean; code?: string };
     try {
-      message = JSON.parse(data) as { type?: string; paused?: boolean };
+      message = JSON.parse(data) as { type?: string; paused?: boolean; code?: string };
     } catch {
       return;
     }
@@ -85,6 +98,9 @@ export class Link {
         break;
       case "pong":
         window.clearTimeout(this.pongTimer);
+        break;
+      case "error":
+        if (message.code) this.events.onServerError?.(message.code);
         break;
     }
   }

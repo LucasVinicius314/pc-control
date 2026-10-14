@@ -1,6 +1,6 @@
 import "./style.css";
 import { api, ApiError, type Capabilities, type Session } from "./api";
-import { Link, type LinkState } from "./socket";
+import { showRemote } from "./remote";
 
 const root = document.getElementById("app") as HTMLElement;
 
@@ -18,6 +18,7 @@ function el<K extends keyof HTMLElementTagNameMap>(
 }
 
 function render(...nodes: Node[]): void {
+  root.classList.remove("fill");
   root.replaceChildren(...nodes);
 }
 
@@ -95,64 +96,16 @@ function showPairing(initialPin: string | null, notice = ""): void {
 }
 
 async function showConnected(session: Session): Promise<void> {
-  const dot = el("span", { class: "dot" });
-  const label = el("span", {}, "Connecting…");
-  const detail = el("p", { class: "meta" });
   let capabilities: Capabilities = {};
-
-  const states: Record<LinkState, [string, string]> = {
-    connecting: ["warn", "Connecting…"],
-    connected: ["ok", "Connected"],
-    paused: ["warn", "Paused on the PC"],
-    reconnecting: ["warn", "Reconnecting…"],
-    unauthorized: ["bad", "Not paired anymore"],
-  };
-
-  const link = new Link({
-    onState: (state) => {
-      const [kind, text] = states[state];
-      dot.className = "dot " + kind;
-      label.textContent = text;
-      if (state === "unauthorized") {
-        link.close();
-        showPairing(null, "This phone was removed on the PC. Pair again.");
-      }
-    },
-  });
-
-  const unpair = el("button", {
-    class: "secondary",
-    textContent: "Forget this PC",
-    onclick: async () => {
-      link.close();
-      try {
-        await api.unpair();
-      } finally {
-        showPairing(null);
-      }
-    },
-  });
-
-  render(
-    el(
-      "section",
-      { class: "card" },
-      el("h1", {}, "PC Control"),
-      el("div", { class: "status" }, dot, label),
-      detail,
-      unpair,
-    ),
-  );
-
-  link.connect();
-
   try {
     capabilities = await api.capabilities();
-    const on = Object.values(capabilities).filter(Boolean).length;
-    detail.textContent = `${session.deviceName} · ${on} of ${Object.keys(capabilities).length} features available`;
   } catch {
-    detail.textContent = session.deviceName;
+    // Without the list, show everything and let the PC refuse what it does not support.
   }
+
+  showRemote(root, session, capabilities, {
+    onUnpaired: (notice) => showPairing(null, notice),
+  });
 }
 
 async function start(): Promise<void> {

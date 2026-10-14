@@ -2,6 +2,7 @@ using System.Diagnostics;
 using PcControl.Core.Config;
 using PcControl.Core.Pairing;
 using PcControl.Host.Properties;
+using PcControl.Host.Web;
 using Serilog;
 
 namespace PcControl.Host.Tray;
@@ -13,35 +14,37 @@ internal sealed class TrayApplicationContext : ApplicationContext
     private readonly PinService _pins;
     private readonly DeviceRegistry _registry;
     private readonly RemoteControlState _state;
+    private readonly DeviceConnections _connections;
     private readonly Control _ui = new();
     private readonly NotifyIcon _icon;
-    private readonly ToolStripMenuItem _devicesMenu = new("Paired devices");
     private readonly ToolStripMenuItem _pauseItem = new("Pause remote control") { CheckOnClick = true };
-    private PairingForm? _pairingForm;
+    private MainForm? _window;
 
     public TrayApplicationContext(
         AppConfig config,
         PinService pins,
         DeviceRegistry registry,
-        RemoteControlState state)
+        RemoteControlState state,
+        DeviceConnections connections)
     {
         _config = config;
         _pins = pins;
         _registry = registry;
         _state = state;
+        _connections = connections;
         // Forces the handle to be created now, on the UI thread, so RunOnUi can marshal back to it.
         _ = _ui.Handle;
 
         var menu = new ContextMenuStrip();
-        var showPin = new ToolStripMenuItem("Show pairing PIN…", null, (_, _) => ShowPairing());
+        var open = new ToolStripMenuItem("Open PC Control", null, (_, _) => ShowWindow(showPairing: false));
+        var pair = new ToolStripMenuItem("Pair a phone…", null, (_, _) => ShowWindow(showPairing: true));
         var logs = new ToolStripMenuItem("Open logs folder", null, (_, _) => OpenFolder(AppPaths.LogsDirectory));
         var quit = new ToolStripMenuItem("Quit", null, (_, _) => ExitThread());
 
-        _devicesMenu.DropDownOpening += (_, _) => RebuildDevicesMenu();
-        _devicesMenu.DropDownItems.Add(new ToolStripMenuItem("(loading)") { Enabled = false });
         _pauseItem.CheckedChanged += (_, _) => _state.Paused = _pauseItem.Checked;
 
-        menu.Items.AddRange([showPin, _devicesMenu, _pauseItem, new ToolStripSeparator(), logs, new ToolStripSeparator(), quit]);
+        open.Font = new Font(open.Font, FontStyle.Bold);
+        menu.Items.AddRange([open, pair, new ToolStripSeparator(), _pauseItem, new ToolStripSeparator(), logs, new ToolStripSeparator(), quit]);
 
         _icon = new NotifyIcon
         {
@@ -50,73 +53,48 @@ internal sealed class TrayApplicationContext : ApplicationContext
             ContextMenuStrip = menu,
             Visible = true,
         };
-        _icon.DoubleClick += (_, _) => ShowPairing();
+        _icon.DoubleClick += (_, _) => ShowWindow(showPairing: false);
 
         _registry.DevicePaired += OnDevicePaired;
         _state.Changed += OnStateChanged;
+        _connections.Changed += OnConnectionsChanged;
 
         UpdateTooltip();
 
         if (_registry.List().Count == 0)
         {
             // First run: nothing is paired yet, so go straight to the PIN.
-            RunOnUi(ShowPairing);
+            RunOnUi(() => ShowWindow(showPairing: true));
         }
     }
 
-    private void ShowPairing()
+    private void ShowWindow(bool showPairing)
     {
-        if (_pairingForm is { IsDisposed: false })
+        if (_window is not { IsDisposed: false })
         {
-            _pairingForm.Activate();
-            return;
+            _window = new MainForm(_pins, _registry, _connections, LanAddresses.Get(), _config.Port);
+            _window.FormClosed += (_, _) => _window = null;
+            _window.Show();
         }
 
-        _pairingForm = new PairingForm(_pins, LanAddresses.Get(), _config.Port);
-        _pairingForm.FormClosed += (_, _) => _pairingForm = null;
-        _pairingForm.Show();
-        _pairingForm.Activate();
-    }
-
-    private void RebuildDevicesMenu()
-    {
-        _devicesMenu.DropDownItems.Clear();
-
-        var devices = _registry.List();
-        if (devices.Count == 0)
+        if (_window.WindowState == FormWindowState.Minimized)
         {
-            _devicesMenu.DropDownItems.Add(new ToolStripMenuItem("(none paired)") { Enabled = false });
-            return;
+            _window.WindowState = FormWindowState.Normal;
         }
 
-        foreach (var device in devices)
+        if (showPairing)
         {
-            var item = new ToolStripMenuItem($"Remove “{device.Name}” (paired {device.PairedAt.LocalDateTime:g})");
-            item.Click += (_, _) => ConfirmRevoke(device);
-            _devicesMenu.DropDownItems.Add(item);
+            _window.ShowPairing(issueNew: true);
         }
-    }
 
-    private void ConfirmRevoke(PairedDevice device)
-    {
-        var answer = MessageBox.Show(
-            $"Remove “{device.Name}”? It will stop working immediately and must pair again with a new PIN.",
-            "PC Control",
-            MessageBoxButtons.YesNo,
-            MessageBoxIcon.Question,
-            MessageBoxDefaultButton.Button2);
-
-        if (answer == DialogResult.Yes && _registry.Revoke(device.Id))
-        {
-            Log.Information("Device {DeviceName} ({DeviceId}) removed from the tray", device.Name, device.Id);
-        }
+        _window.Activate();
     }
 
     private void OnDevicePaired(object? sender, PairedDevice device) =>
         RunOnUi(() =>
         {
             _icon.ShowBalloonTip(4000, "PC Control", $"{device.Name} is now paired.", ToolTipIcon.Info);
-            _pairingForm?.Close();
+            _window?.HidePairing();
         });
 
     private void OnStateChanged(object? sender, EventArgs e) =>
@@ -130,6 +108,8 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
             UpdateTooltip();
         });
+
+    private void OnConnectionsChanged(object? sender, EventArgs e) => RunOnUi(UpdateTooltip);
 
     /// <summary>Runs <paramref name="action"/> on the UI thread; safe to call from any thread.</summary>
     private void RunOnUi(Action action)
@@ -147,8 +127,19 @@ internal sealed class TrayApplicationContext : ApplicationContext
         }
     }
 
-    private void UpdateTooltip() =>
-        _icon.Text = _state.Paused ? "PC Control (paused)" : "PC Control";
+    private void UpdateTooltip()
+    {
+        var phones = _connections.DeviceCount;
+        var text = phones switch
+        {
+            0 => "PC Control",
+            1 => "PC Control - 1 phone connected",
+            _ => $"PC Control - {phones} phones connected",
+        };
+
+        // The tray tooltip is limited to 63 characters.
+        _icon.Text = _state.Paused ? text + " (paused)" : text;
+    }
 
     private static void OpenFolder(string path) =>
         Process.Start(new ProcessStartInfo { FileName = path, UseShellExecute = true });
@@ -159,7 +150,8 @@ internal sealed class TrayApplicationContext : ApplicationContext
         {
             _registry.DevicePaired -= OnDevicePaired;
             _state.Changed -= OnStateChanged;
-            _pairingForm?.Dispose();
+            _connections.Changed -= OnConnectionsChanged;
+            _window?.Dispose();
             _icon.Visible = false;
             _icon.Dispose();
             _ui.Dispose();

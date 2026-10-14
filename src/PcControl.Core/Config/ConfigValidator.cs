@@ -40,6 +40,11 @@ public static class ConfigValidator
             errors.Add($"pairing.lockoutMinutes must be between 1 and 1440 (was {pairing.LockoutMinutes}).");
         }
 
+        if (double.IsNaN(config.Input.PointerGain) || config.Input.PointerGain is < 0.1 or > 20)
+        {
+            errors.Add($"input.pointerGain must be between 0.1 and 20 (was {config.Input.PointerGain}).");
+        }
+
         return errors;
     }
 }

@@ -6,8 +6,8 @@
       "type": "coreclr",
       "request": "launch",
       "preLaunchTask": "build host",
-      "program": "${workspaceFolder}/src/PcControl.Host/bin/Debug/net10.0-windows/PcControl.exe",
-      "cwd": "${workspaceFolder}/src/PcControl.Host/bin/Debug/net10.0-windows",
+      "program": "${workspaceFolder}/src/PcControl.Host/bin/Debug/net10.0-windows10.0.22000.0/PcControl.exe",
+      "cwd": "${workspaceFolder}/src/PcControl.Host/bin/Debug/net10.0-windows10.0.22000.0",
       "console": "internalConsole",
       "stopAtEntry": false
     }

@@ -13,6 +13,14 @@ public sealed record AppConfig
     public FeatureToggles Features { get; init; } = new();
 
     public PairingConfig Pairing { get; init; } = new();
+
+    public InputConfig Input { get; init; } = new();
+}
+
+public sealed record InputConfig
+{
+    /// <summary>Base cursor speed: PC pixels moved per phone pixel of finger movement at low speed.</summary>
+    public double PointerGain { get; init; } = 2.0;
 }
 
 /// <summary>Switches for the risky feature groups. A disabled group is refused by the server.</summary>

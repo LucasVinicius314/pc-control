@@ -9,6 +9,7 @@ contract bumps `protocolVersion` (see `ProtocolInfo.Version` in `PcControl.Core`
 | [openapi.yaml](openapi.yaml) | REST endpoints |
 | [websocket.md](websocket.md) | The live `/ws` channel |
 | [pairing.md](pairing.md) | PIN / QR pairing and tokens |
+| [gestures.md](gestures.md) | Trackpad gesture rules every phone client follows |
 
 ## Compatibility rules
 
@@ -20,6 +21,9 @@ contract bumps `protocolVersion` (see `ProtocolInfo.Version` in `PcControl.Core`
 
 ## Implemented so far
 
-Milestone 1: pairing, session, capabilities and the WebSocket handshake with `hello`, `ping`/`pong`,
-`paused` and `error`. Every other endpoint in the plan is added with its milestone and appears here
-first.
+- Milestone 1: pairing, session, capabilities and the WebSocket handshake with `hello`, `ping`/`pong`,
+  `paused` and `error`.
+- Milestone 2: input over the WebSocket (mouse move and scroll frames, buttons, keys, text, zoom,
+  sensitivity), release-on-disconnect, and the gesture rules.
+
+Every other endpoint in the plan is added with its milestone and appears here first.

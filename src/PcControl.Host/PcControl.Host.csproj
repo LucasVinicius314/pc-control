@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
-    <TargetFramework>net10.0-windows</TargetFramework>
+    <TargetFramework>net10.0-windows10.0.22000.0</TargetFramework>
     <OutputType>WinExe</OutputType>
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\PcControl.Core\PcControl.Core.csproj" />
+    <ProjectReference Include="..\PcControl.Windows\PcControl.Windows.csproj" />
     <EmbeddedResource Include="Assets\app.ico" LogicalName="app.ico" />
     <InternalsVisibleTo Include="PcControl.Tests" />
   </ItemGroup>
@@ -28,7 +29,7 @@
     <Exec Command="npm ci" WorkingDirectory="$(WebDir)" Condition="!Exists('$(WebDir)node_modules')" />
     <Exec Command="npm run build" WorkingDirectory="$(WebDir)" />
   </Target>
-  <Target Name="EmbedWeb" DependsOnTargets="BuildWeb" BeforeTargets="AssignTargetPaths;_GenerateEmbeddedFilesManifest">
+  <Target Name="EmbedWeb" DependsOnTargets="BuildWeb" BeforeTargets="_CalculateEmbeddedFilesManifestInputs;AssignTargetPaths">
     <ItemGroup>
       <WebAsset Include="$(WebDir)dist\**" />
       <EmbeddedResource Include="@(WebAsset)" Link="web\%(WebAsset.RecursiveDir)%(WebAsset.Filename)%(WebAsset.Extension)" />

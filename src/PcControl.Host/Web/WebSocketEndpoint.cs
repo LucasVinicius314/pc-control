@@ -1,4 +1,5 @@
 using System.Net.WebSockets;
+using PcControl.Core.Input;
 using PcControl.Core.Network;
 using PcControl.Core.Protocol;
 
@@ -16,6 +17,8 @@ internal static class WebSocketEndpoint
         HttpContext context,
         DeviceConnections connections,
         RemoteControlState state,
+        IInputInjector injector,
+        PointerCurve curve,
         ILogger<WsConnection> logger)
     {
         if (!context.WebSockets.IsWebSocketRequest)
@@ -44,7 +47,7 @@ internal static class WebSocketEndpoint
         var deviceName = context.User.Identity!.Name!;
 
         using var socket = await context.WebSockets.AcceptWebSocketAsync();
-        using var connection = new WsConnection(socket, deviceId, deviceName);
+        using var connection = new WsConnection(socket, deviceId, deviceName, new InputSession(injector, curve));
 
         connections.Add(connection);
         logger.LogInformation("{DeviceName} connected from {Remote}", deviceName, context.Connection.RemoteIpAddress);
@@ -70,7 +73,8 @@ internal static class WebSocketEndpoint
         finally
         {
             connections.Remove(connection);
-            // Milestone 2: release every held key and mouse button here.
+            // Whatever the reason the socket closed, nothing may stay held down on the PC.
+            connection.Input.ReleaseAll();
             logger.LogInformation("{DeviceName} disconnected", deviceName);
         }
 
@@ -105,7 +109,11 @@ internal static class WebSocketEndpoint
 
             if (result.MessageType != WebSocketMessageType.Text)
             {
-                await connection.SendAsync(new { type = WsMessageTypes.Error, code = "unsupported_binary" }, cancellationToken);
+                if (!state.Paused)
+                {
+                    await ReplyIfError(connection, InputDispatcher.HandleBinary(buffer.AsSpan(0, length), connection.Input), cancellationToken);
+                }
+
                 continue;
             }
 
@@ -121,11 +129,26 @@ internal static class WebSocketEndpoint
                     await connection.SendAsync(new { type = WsMessageTypes.Pong }, cancellationToken);
                     break;
                 default:
-                    // Input messages arrive in milestone 2 and are dropped here while paused.
-                    var code = state.Paused ? "paused" : "unknown_type";
-                    await connection.SendAsync(new { type = WsMessageTypes.Error, code }, cancellationToken);
+                    // While the kill switch is on, input is dropped without a reply. The phone has
+                    // already been told, and answering every mouse move would only add noise.
+                    if (InputDispatcher.IsInputMessage(message.Type))
+                    {
+                        if (!state.Paused)
+                        {
+                            await ReplyIfError(connection, InputDispatcher.HandleJson(message, connection.Input), cancellationToken);
+                        }
+
+                        break;
+                    }
+
+                    await connection.SendAsync(new { type = WsMessageTypes.Error, code = "unknown_type" }, cancellationToken);
                     break;
             }
         }
     }
+
+    private static Task ReplyIfError(WsConnection connection, DispatchResult result, CancellationToken cancellationToken) =>
+        result.ErrorCode is null
+            ? Task.CompletedTask
+            : connection.SendAsync(new { type = WsMessageTypes.Error, code = result.ErrorCode }, cancellationToken);
 }

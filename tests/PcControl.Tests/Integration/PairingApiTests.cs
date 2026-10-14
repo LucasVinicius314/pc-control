@@ -123,7 +123,7 @@ public class PairingApiTests
     }
 
     [Fact]
-    public async Task Capabilities_ListsFeatures_AllOffInMilestone1()
+    public async Task Capabilities_ReportsImplementedFeatures()
     {
         await using var server = await TestServer.StartAsync();
         await server.PairAsync();
@@ -131,8 +131,9 @@ public class PairingApiTests
         var caps = await server.Http.GetFromJsonAsync<Dictionary<string, bool>>("/api/capabilities");
 
         Assert.NotNull(caps);
-        Assert.Contains("trackpad", caps.Keys);
-        Assert.All(caps, kv => Assert.False(kv.Value));
+        Assert.True(caps["trackpad"]);
+        Assert.True(caps["keyboard"]);
+        Assert.False(caps["appLauncher"]);
     }
 
     [Fact]

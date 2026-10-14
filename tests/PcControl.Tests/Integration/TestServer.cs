@@ -21,9 +21,11 @@ internal sealed class TestServer : IAsyncDisposable
     private readonly CookieContainer _cookies = new();
     private readonly HttpClientHandler _handler;
 
-    private TestServer(WebApplication app, PinService pins, DeviceRegistry registry, RemoteControlState state, AppConfig config)
+    private TestServer(WebApplication app, PinService pins, DeviceRegistry registry, RemoteControlState state, AppConfig config, FakeInjector injector, DeviceConnections connections)
     {
         _app = app;
+        Connections = connections;
+        Injector = injector;
         Pins = pins;
         Registry = registry;
         State = state;
@@ -36,6 +38,10 @@ internal sealed class TestServer : IAsyncDisposable
         _handler = new HttpClientHandler { CookieContainer = _cookies, UseCookies = true };
         Http = new HttpClient(_handler) { BaseAddress = BaseUri };
     }
+
+    public FakeInjector Injector { get; }
+
+    internal DeviceConnections Connections { get; }
 
     public PinService Pins { get; }
 
@@ -68,9 +74,10 @@ internal sealed class TestServer : IAsyncDisposable
         var state = new RemoteControlState();
         var connections = new DeviceConnections();
 
-        var app = ServerFactory.Build(config, pins, limiter, registry, state, connections);
+        var injector = new FakeInjector();
+        var app = ServerFactory.Build(config, pins, limiter, registry, state, connections, injector);
         await app.StartAsync();
-        return new TestServer(app, pins, registry, state, config);
+        return new TestServer(app, pins, registry, state, config, injector, connections);
     }
 
     /// <summary>Issues a PIN and pairs through the real endpoint. Returns the session JSON.</summary>

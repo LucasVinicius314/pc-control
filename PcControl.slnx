@@ -2,6 +2,7 @@
   <Folder Name="/src/">
     <Project Path="src/PcControl.Core/PcControl.Core.csproj" />
     <Project Path="src/PcControl.Host/PcControl.Host.csproj" />
+    <Project Path="src/PcControl.Windows/PcControl.Windows.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/PcControl.Tests/PcControl.Tests.csproj" />

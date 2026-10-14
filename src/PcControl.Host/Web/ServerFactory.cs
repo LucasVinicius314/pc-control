@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.FileProviders;
 using PcControl.Core.Config;
+using PcControl.Core.Input;
 using PcControl.Core.Pairing;
 using PcControl.Core.Protocol;
 using Serilog;
@@ -15,7 +16,8 @@ internal static class ServerFactory
         PairingRateLimiter limiter,
         DeviceRegistry registry,
         RemoteControlState state,
-        DeviceConnections connections)
+        DeviceConnections connections,
+        IInputInjector injector)
     {
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions
         {
@@ -38,6 +40,8 @@ internal static class ServerFactory
         builder.Services.AddSingleton(registry);
         builder.Services.AddSingleton(state);
         builder.Services.AddSingleton(connections);
+        builder.Services.AddSingleton(injector);
+        builder.Services.AddSingleton(new PointerCurve(config.Input.PointerGain));
 
         builder.Services.AddAuthentication(DeviceAuth.Scheme)
             .AddScheme<AuthenticationSchemeOptions, DeviceAuthenticationHandler>(DeviceAuth.Scheme, null);
@@ -46,7 +50,16 @@ internal static class ServerFactory
         var app = builder.Build();
 
         registry.DeviceRevoked += (_, device) => connections.Revoke(device.Id);
-        state.Changed += (_, _) => _ = connections.BroadcastAsync(new { type = WsMessageTypes.Paused, paused = state.Paused });
+        state.Changed += (_, _) =>
+        {
+            // Pausing must stop everything at once, including keys and buttons already held down.
+            if (state.Paused)
+            {
+                connections.ReleaseAllInput();
+            }
+
+            _ = connections.BroadcastAsync(new { type = WsMessageTypes.Paused, paused = state.Paused });
+        };
 
         app.UseMiddleware<GuardMiddleware>();
         app.UseWebSockets(new WebSocketOptions { KeepAliveInterval = TimeSpan.FromSeconds(15) });
