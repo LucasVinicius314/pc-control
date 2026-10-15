@@ -45,6 +45,27 @@ public static class ConfigValidator
             errors.Add($"input.pointerGain must be between 0.1 and 20 (was {config.Input.PointerGain}).");
         }
 
+        var dpi = config.Dpi;
+        if (!Display.DpiScaleTable.IsKnownScale(dpi.LowPercent) || !Display.DpiScaleTable.IsKnownScale(dpi.HighPercent))
+        {
+            errors.Add($"dpi.lowPercent and dpi.highPercent must each be one of {string.Join(", ", Display.DpiScaleTable.Percents)} (were {dpi.LowPercent} and {dpi.HighPercent}).");
+        }
+        else if (dpi.LowPercent >= dpi.HighPercent)
+        {
+            errors.Add($"dpi.lowPercent must be smaller than dpi.highPercent (were {dpi.LowPercent} and {dpi.HighPercent}).");
+        }
+
+        var monitor = dpi.Monitor?.Trim().ToLowerInvariant();
+        if (monitor is not ("cursor" or "primary") && !(int.TryParse(monitor, System.Globalization.CultureInfo.InvariantCulture, out var index) && index is >= 0 and <= 15))
+        {
+            errors.Add($"dpi.monitor must be \"cursor\", \"primary\" or a monitor number from 0 to 15 (was \"{dpi.Monitor}\").");
+        }
+
+        if (dpi.FallbackScriptPath is { } script && (string.IsNullOrWhiteSpace(script) || script.Length > 260))
+        {
+            errors.Add("dpi.fallbackScriptPath must be a file path of at most 260 characters, or left out.");
+        }
+
         return errors;
     }
 }

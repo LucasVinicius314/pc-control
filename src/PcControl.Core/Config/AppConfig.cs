@@ -15,6 +15,27 @@ public sealed record AppConfig
     public PairingConfig Pairing { get; init; } = new();
 
     public InputConfig Input { get; init; } = new();
+
+    public DpiConfig Dpi { get; init; } = new();
+}
+
+public sealed record DpiConfig
+{
+    /// <summary>
+    /// Which monitor the toggle changes: "primary" (the default), "cursor" (the one the mouse is on),
+    /// or a monitor number from 0. Monitors differ in the scales they allow, so the choice matters.
+    /// </summary>
+    public string Monitor { get; init; } = "primary";
+
+    public int LowPercent { get; init; } = 100;
+
+    public int HighPercent { get; init; } = 200;
+
+    /// <summary>
+    /// A script or program that flips the scale, used only if Windows' own display-scale calls stop
+    /// working (they are not officially documented). Never run with anything from the phone.
+    /// </summary>
+    public string? FallbackScriptPath { get; init; }
 }
 
 public sealed record InputConfig

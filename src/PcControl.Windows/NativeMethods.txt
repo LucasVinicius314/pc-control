@@ -25,3 +25,10 @@ timeEndPeriod
 SetProcessInformation
 GetCurrentProcess
 PROCESS_POWER_THROTTLING_STATE
+GetDisplayConfigBufferSizes
+QueryDisplayConfig
+DisplayConfigGetDeviceInfo
+DisplayConfigSetDeviceInfo
+DISPLAYCONFIG_SOURCE_DEVICE_NAME
+MonitorFromPoint
+GetDpiForMonitor

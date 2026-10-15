@@ -92,6 +92,48 @@ paths:
                   power: false
         "401":
           description: Missing, unknown or revoked token.
+  /api/dpi:
+    get:
+      summary: The display scale the toggle controls
+      description: |
+        Reads the scale fresh each time. `available` is false when the startup self-test failed (for
+        example after a Windows update changed the undocumented calls the toggle relies on); `reason`
+        then says why. The target monitor is chosen by `dpi.monitor` in the PC's config (default: the
+        primary monitor).
+      responses:
+        "200":
+          description: The scale and what the toggle switches between.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DpiStatus"
+        "401":
+          description: Missing, unknown or revoked token.
+  /api/dpi/toggle:
+    post:
+      summary: Switch the display scale between its low and high value
+      description: |
+        Changes the target monitor from the low scale (default 100%) to the high one (default 200%), or
+        from anything else back to the low one. The response is sent only after Windows reports the
+        new scale. Some apps stay blurry until restarted. Calls while a change is running get 409
+        instead of undoing it.
+      responses:
+        "200":
+          description: Changed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DpiChange"
+        "401":
+          description: Missing, unknown or revoked token.
+        "409":
+          description: A change is already in progress (`busy`).
+        "422":
+          description: The monitor does not allow the target scale (`scale_not_supported`). `message` says what its largest scale is.
+        "502":
+          description: Windows accepted the request but the scale did not change (`dpi_failed`).
+        "503":
+          description: The toggle is turned off, for example because the self-test failed (`dpi_unavailable`).
   /api/monitors:
     get:
       summary: The PC's monitors, left to right
@@ -165,6 +207,57 @@ components:
       type: http
       scheme: bearer
   schemas:
+    DpiStatus:
+      type: object
+      required: [available, lowPercent, highPercent]
+      properties:
+        available:
+          type: boolean
+        reason:
+          type: string
+          nullable: true
+          description: Why the toggle is off, when it is.
+        percent:
+          type: integer
+          nullable: true
+          description: The monitor's current scale.
+        lowPercent:
+          type: integer
+          example: 100
+        highPercent:
+          type: integer
+          example: 200
+        monitor:
+          type: object
+          nullable: true
+          properties:
+            index:
+              type: integer
+            name:
+              type: string
+        backend:
+          type: string
+          nullable: true
+          description: Which method read the scale (display-config, effective-dpi or script).
+    DpiChange:
+      type: object
+      required: [previous, percent, note]
+      properties:
+        previous:
+          type: integer
+        percent:
+          type: integer
+        monitor:
+          type: object
+          nullable: true
+          properties:
+            index:
+              type: integer
+            name:
+              type: string
+        note:
+          type: string
+          example: Some apps stay blurry until they are restarted.
     Monitor:
       type: object
       required: [index, name, x, y, width, height, primary]

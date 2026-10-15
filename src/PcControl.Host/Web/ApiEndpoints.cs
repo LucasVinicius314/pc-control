@@ -1,5 +1,6 @@
 using PcControl.Core.Capture;
 using PcControl.Core.Config;
+using PcControl.Core.Display;
 using PcControl.Core.Pairing;
 using PcControl.Core.Protocol;
 
@@ -34,10 +35,79 @@ internal static class ApiEndpoints
 
         secured.MapDelete("/session", Unpair);
 
-        secured.MapGet("/capabilities", (AppConfig config) => Capabilities.Build(config));
+        secured.MapGet("/capabilities", (AppConfig config, DpiToggleService dpi) =>
+        {
+            // The DPI toggle only counts as available if its startup self-test passed.
+            var implemented = new HashSet<string>(Capabilities.Implemented, StringComparer.Ordinal);
+            if (dpi.Available)
+            {
+                implemented.Add("dpiToggle");
+            }
+
+            return Capabilities.Build(config, implemented);
+        });
+
+        secured.MapGet("/dpi", GetDpi);
+        secured.MapPost("/dpi/toggle", ToggleDpi);
 
         secured.MapGet("/monitors", Monitors);
         secured.MapGet("/screenshot", Screenshot);
+    }
+
+    private static IResult GetDpi(DpiToggleService dpi)
+    {
+        var status = dpi.Available ? dpi.Read() : dpi.Status;
+        return Results.Json(new
+        {
+            available = status.Available,
+            reason = status.Reason,
+            percent = status.Percent,
+            lowPercent = dpi.LowPercent,
+            highPercent = dpi.HighPercent,
+            monitor = status.Monitor is { } m ? new { index = m.Index, name = m.Name } : null,
+            backend = status.Backend,
+        });
+    }
+
+    private static async Task<IResult> ToggleDpi(HttpContext context, DpiToggleService dpi, ILogger<PairRequest> logger)
+    {
+        var result = await dpi.ToggleAsync();
+        var monitor = result.Monitor is { } m ? new { index = m.Index, name = m.Name } : null;
+
+        switch (result.Outcome)
+        {
+            case DpiOutcome.Ok:
+                logger.LogInformation(
+                    "{DeviceName} switched the display scale of {Monitor} from {Previous}% to {Current}%",
+                    context.User.Identity!.Name,
+                    result.Monitor!.Name,
+                    result.Previous,
+                    result.Current);
+                return Results.Json(new
+                {
+                    previous = result.Previous,
+                    percent = result.Current,
+                    monitor,
+                    note = "Some apps stay blurry until they are restarted.",
+                });
+
+            case DpiOutcome.Busy:
+                return Results.Json(new { error = "busy", message = result.Message }, statusCode: StatusCodes.Status409Conflict);
+
+            case DpiOutcome.Unavailable:
+                return Results.Json(new { error = "dpi_unavailable", message = result.Message }, statusCode: StatusCodes.Status503ServiceUnavailable);
+
+            case DpiOutcome.NotSupported:
+                return Results.Json(
+                    new { error = "scale_not_supported", message = result.Message, percent = result.Current, monitor },
+                    statusCode: StatusCodes.Status422UnprocessableEntity);
+
+            default:
+                logger.LogWarning("Switching the display scale failed: {Message}", result.Message);
+                return Results.Json(
+                    new { error = "dpi_failed", message = result.Message, percent = result.Current, monitor },
+                    statusCode: StatusCodes.Status502BadGateway);
+        }
     }
 
     private static IResult Monitors(AppConfig config, IScreenCapturer capturer)

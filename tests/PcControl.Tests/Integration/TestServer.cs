@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.Extensions.DependencyInjection;
 using PcControl.Core.Config;
+using PcControl.Core.Display;
 using PcControl.Core.Pairing;
 using PcControl.Host;
 using PcControl.Host.Web;
@@ -21,9 +22,11 @@ internal sealed class TestServer : IAsyncDisposable
     private readonly CookieContainer _cookies = new();
     private readonly HttpClientHandler _handler;
 
-    private TestServer(WebApplication app, PinService pins, DeviceRegistry registry, RemoteControlState state, AppConfig config, FakeInjector injector, FakeScreen screen, DeviceConnections connections)
+    private TestServer(WebApplication app, PinService pins, DeviceRegistry registry, RemoteControlState state, AppConfig config, FakeInjector injector, FakeScreen screen, DeviceConnections connections, FakeScaleBackend scale, DpiToggleService dpi)
     {
         _app = app;
+        Scale = scale;
+        Dpi = dpi;
         Screen = screen;
         Connections = connections;
         Injector = injector;
@@ -43,6 +46,10 @@ internal sealed class TestServer : IAsyncDisposable
     public FakeInjector Injector { get; }
 
     public FakeScreen Screen { get; }
+
+    public FakeScaleBackend Scale { get; }
+
+    public DpiToggleService Dpi { get; }
 
     internal DeviceConnections Connections { get; }
 
@@ -80,9 +87,12 @@ internal sealed class TestServer : IAsyncDisposable
 
         var injector = new FakeInjector();
         var screen = new FakeScreen();
-        var app = ServerFactory.Build(config, pins, limiter, registry, state, connections, injector, screen, screen);
+        var scale = new FakeScaleBackend();
+        var dpi = new DpiToggleService(screen, [scale], config.Dpi, _ => Task.CompletedTask);
+        dpi.Check();
+        var app = ServerFactory.Build(config, pins, limiter, registry, state, connections, injector, screen, screen, dpi);
         await app.StartAsync();
-        return new TestServer(app, pins, registry, state, config, injector, screen, connections);
+        return new TestServer(app, pins, registry, state, config, injector, screen, connections, scale, dpi);
     }
 
     /// <summary>Issues a PIN and pairs through the real endpoint. Returns the session JSON.</summary>
@@ -124,6 +134,7 @@ internal sealed class TestServer : IAsyncDisposable
     {
         Http.Dispose();
         _handler.Dispose();
+        Dpi.Dispose();
         await _app.StopAsync();
         await _app.DisposeAsync();
     }

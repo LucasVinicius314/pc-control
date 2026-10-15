@@ -1,4 +1,5 @@
 using PcControl.Core.Config;
+using PcControl.Core.Display;
 using PcControl.Windows;
 using Microsoft.Extensions.Logging;
 using PcControl.Core.Pairing;
@@ -16,7 +17,11 @@ internal static class Program
     private static int Main()
     {
         // One instance per signed-in user; "Local\" scopes the name to this session.
-        using var mutex = new Mutex(initiallyOwned: true, @"Local\PcControl.SingleInstance", out var isFirst);
+        // The name includes the data folder, so a second copy on the same settings is refused while a
+        // copy pointed at a different folder (PCCONTROL_DATA_DIR, e.g. for testing) can run beside it.
+        var folderId = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes(AppPaths.Root.ToUpperInvariant())))[..12];
+        using var mutex = new Mutex(initiallyOwned: true, $@"Local\PcControl.SingleInstance.{folderId}", out var isFirst);
         if (!isFirst)
         {
             MessageBox.Show("PC Control is already running. Look for its icon in the system tray.", AppTitle);
@@ -83,7 +88,33 @@ internal static class Program
         var injector = new SendInputInjector(new Serilog.Extensions.Logging.SerilogLoggerFactory(Log.Logger).CreateLogger<SendInputInjector>());
         Log.Information("Per-monitor DPI awareness (v2): {Aware}", DpiAwareness.IsPerMonitorV2());
 
-        var app = ServerFactory.Build(config, pins, limiter, registry, state, connections, injector, new GdiScreenCapturer(), new GdiPlusJpegEncoder());
+        var screen = new GdiScreenCapturer();
+        var loggers = new Serilog.Extensions.Logging.SerilogLoggerFactory(Log.Logger);
+
+        // Try the ways of reading and changing the display scale in order. The first two use Windows'
+        // own calls; the script is only there if the user set one up because those stopped working.
+        var scaleBackends = new List<IDisplayScaleBackend>
+        {
+            new DisplayConfigScaleBackend(loggers.CreateLogger<DisplayConfigScaleBackend>()),
+            new EffectiveDpiScaleBackend(),
+        };
+        if (!string.IsNullOrWhiteSpace(config.Dpi.FallbackScriptPath))
+        {
+            scaleBackends.Add(new ScriptScaleBackend(config.Dpi.FallbackScriptPath, loggers.CreateLogger<ScriptScaleBackend>()));
+        }
+
+        using var dpi = new DpiToggleService(screen, scaleBackends, config.Dpi);
+        var dpiStatus = dpi.Check();
+        if (dpiStatus.Available)
+        {
+            Log.Information("Display scale toggle ready: {Monitor} is at {Percent}% (via {Backend})", dpiStatus.Monitor?.Name, dpiStatus.Percent, dpiStatus.Backend);
+        }
+        else
+        {
+            Log.Warning("Display scale toggle switched off: {Reason}", dpiStatus.Reason);
+        }
+
+        var app = ServerFactory.Build(config, pins, limiter, registry, state, connections, injector, screen, new GdiPlusJpegEncoder(), dpi);
 
         try
         {

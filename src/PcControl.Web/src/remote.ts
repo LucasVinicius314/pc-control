@@ -7,6 +7,8 @@ import { KeyboardInput } from "./keyboard";
 import { MODIFIER_CODES, Modifiers } from "./modifiers";
 import { Link, type LinkState } from "./socket";
 import { loadPrefs, ViewClient } from "./views";
+import { badgeText, changedMessage, failureMessage } from "./dpi";
+import { icon, type IconName } from "./icons";
 import { DISPLAY_FPS, MINI_ZOOMS, nextCorner, type ViewPrefs } from "./viewlogic";
 
 const TICK_MS = 50;
@@ -46,6 +48,18 @@ function button(label: string, className = "", onClick?: () => void): HTMLButton
   // Keep focus where it is, so tapping a key does not close the on-screen keyboard.
   b.addEventListener("pointerdown", (e) => e.preventDefault());
   if (onClick) b.addEventListener("click", onClick);
+  return b;
+}
+
+/**
+ * A toolbar button that shows only an icon. The label is still there for screen readers and as a
+ * tooltip, so it stays clear what each one does.
+ */
+function iconButton(name: IconName, label: string, onClick: () => void): HTMLButtonElement {
+  const b = button("", "tool icon-button", onClick);
+  b.append(icon(name));
+  b.setAttribute("aria-label", label);
+  b.title = label;
   return b;
 }
 
@@ -126,7 +140,11 @@ export function showRemote(
   const ring = document.createElement("div");
   ring.className = "cursor-ring";
   ring.hidden = true;
-  pad.append(displayCanvas, ring, miniCanvas, hint, note);
+  const toast = document.createElement("p");
+  toast.className = "toast";
+  toast.setAttribute("role", "status");
+  toast.hidden = true;
+  pad.append(displayCanvas, ring, miniCanvas, hint, note, toast);
 
   const views = new ViewClient(
     (message) => void link.send(JSON.stringify(message)),
@@ -165,27 +183,77 @@ export function showRemote(
   });
 
   // ---- toolbar -----------------------------------------------------------------------------
-  const keyboardButton = button("Keyboard", "tool", () => (keyboard.focused ? keyboard.hide() : keyboard.show()));
-  const leftButton = button("Left click", "tool", () => {
+  const keyboardButton = iconButton("keyboard", "Keyboard", () => (keyboard.focused ? keyboard.hide() : keyboard.show()));
+  const leftButton = iconButton("leftClick", "Left click", () => {
     input.click("left");
     mods.consumeOnce();
   });
-  const rightButton = button("Right click", "tool", () => {
+  const rightButton = iconButton("rightClick", "Right click", () => {
     input.click("right");
     mods.consumeOnce();
   });
-  const keysButton = button("Keys", "tool", () => {
-    const opening = drawer.hidden !== false;
-    drawer.hidden = !opening;
-    keysButton.classList.toggle("on", opening);
+  // Only one panel is open at a time. Stacked together they would take all the room and push the
+  // toolbar, and with it the way to close them, off the screen.
+  const panelButtons = new Map<HTMLElement, HTMLButtonElement>();
+  const togglePanel = (panel: HTMLElement): boolean => {
+    const opening = panel.hidden !== false;
+    for (const [other, otherButton] of panelButtons) {
+      other.hidden = true;
+      otherButton.classList.remove("on");
+    }
+    if (opening) {
+      panel.hidden = false;
+      panelButtons.get(panel)?.classList.add("on");
+    }
+    return opening;
+  };
+
+  const keysButton = iconButton("keys", "Special keys", () => void togglePanel(drawer));
+  const viewButton = iconButton("view", "Screen preview", () => {
+    if (togglePanel(viewSheet)) void loadMonitors();
   });
-  const viewButton = button("View", "tool", () => {
-    const opening = viewSheet.hidden !== false;
-    viewSheet.hidden = !opening;
-    viewButton.classList.toggle("on", opening);
-    if (opening) void loadMonitors();
-  });
-  const settingsButton = button("Settings", "tool", () => (settings.hidden = !settings.hidden));
+  // The display-scale button: shows the current scale under its icon and flips it on a tap.
+  const dpiBadge = document.createElement("span");
+  dpiBadge.className = "badge";
+  dpiBadge.textContent = badgeText(null);
+  let dpiBusy = false;
+  const dpiButton = iconButton("dpi", "Display scale", () => void toggleDpi());
+  dpiButton.append(dpiBadge);
+
+  const refreshDpi = async () => {
+    try {
+      dpiBadge.textContent = badgeText(await api.dpi());
+    } catch {
+      dpiBadge.textContent = badgeText(null);
+    }
+  };
+
+  const toggleDpi = async () => {
+    if (dpiBusy) return;
+    dpiBusy = true;
+    dpiButton.classList.add("busy");
+    try {
+      const change = await api.toggleDpi();
+      dpiBadge.textContent = badgeText({ available: true, percent: change.percent });
+      showToast(changedMessage(change));
+    } catch (error) {
+      showToast(failureMessage(error));
+      await refreshDpi();
+    } finally {
+      dpiBusy = false;
+      dpiButton.classList.remove("busy");
+    }
+  };
+
+  let toastTimer = 0;
+  const showToast = (text: string) => {
+    toast.textContent = text;
+    toast.hidden = false;
+    window.clearTimeout(toastTimer);
+    toastTimer = window.setTimeout(() => (toast.hidden = true), 5000);
+  };
+
+  const settingsButton = iconButton("settings", "Settings", () => void togglePanel(settings));
 
   const toolbar = document.createElement("nav");
   toolbar.className = "toolbar";
@@ -194,6 +262,14 @@ export function showRemote(
   toolbar.append(leftButton, rightButton);
   if (capabilities["keyboard"] !== false) toolbar.append(keysButton);
   if (capabilities["magnifier"] !== false || capabilities["screenshot"] !== false) toolbar.append(viewButton);
+  if (capabilities["dpiToggle"] === true) {
+    toolbar.append(dpiButton);
+    void refreshDpi();
+    // The scale can be changed on the PC too, so look again whenever the page comes back.
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") void refreshDpi();
+    });
+  }
   toolbar.append(settingsButton);
 
   // ---- special keys ----------------------------------------------------------------------------
@@ -378,6 +454,9 @@ export function showRemote(
 
   const screen = document.createElement("div");
   screen.className = "remote";
+  panelButtons.set(drawer, keysButton);
+  panelButtons.set(viewSheet, viewButton);
+  panelButtons.set(settings, settingsButton);
   screen.append(header, pad, viewSheet, settings, drawer, toolbar, keyboard.element);
   root.replaceChildren(screen);
   root.classList.add("fill");

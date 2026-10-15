@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.FileProviders;
 using PcControl.Core.Capture;
 using PcControl.Core.Config;
+using PcControl.Core.Display;
 using PcControl.Core.Input;
 using PcControl.Core.Pairing;
 using PcControl.Core.Protocol;
@@ -20,7 +21,8 @@ internal static class ServerFactory
         DeviceConnections connections,
         IInputInjector injector,
         IScreenCapturer capturer,
-        IJpegEncoder encoder)
+        IJpegEncoder encoder,
+        DpiToggleService dpi)
     {
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions
         {
@@ -46,6 +48,7 @@ internal static class ServerFactory
         builder.Services.AddSingleton(injector);
         builder.Services.AddSingleton(capturer);
         builder.Services.AddSingleton(encoder);
+        builder.Services.AddSingleton(dpi);
         builder.Services.AddSingleton(new PointerCurve(config.Input.PointerGain));
 
         builder.Services.AddAuthentication(DeviceAuth.Scheme)
