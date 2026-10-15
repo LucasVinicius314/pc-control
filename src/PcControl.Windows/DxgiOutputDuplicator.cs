@@ -487,40 +487,68 @@ internal sealed class DxgiOutputDuplicator : IDisposable
         }
     }
 
-    /// <summary>The general path for a picture that arrives turned. Slower, and rarely needed.</summary>
+    /// <summary>
+    /// A picture that arrives turned (a portrait monitor whose graphics card hands over the panel's own
+    /// orientation). Where a sample lives in memory is a straight sum of a part that depends only on
+    /// its column on screen and a part that depends only on its row, so both are worked out once and
+    /// the inner loop is as plain as the upright one.
+    /// </summary>
     private unsafe void ResampleRotated(byte* source, int pitch, Rect box, Rect region, int outputWidth, int outputHeight, byte[] destination)
     {
         var samplesX = OutputGeometry.SamplesFor(region.Width, outputWidth);
         var samplesY = OutputGeometry.SamplesFor(region.Height, outputHeight);
         var xs = OutputGeometry.SamplePositions(region.Width, outputWidth, samplesX);
         var ys = OutputGeometry.SamplePositions(region.Height, outputHeight, samplesY);
-        var count = samplesX * samplesY;
+
+        long OffsetOf(int x, int y)
+        {
+            var (ix, iy) = OutputGeometry.ToImage(Rotation, region.X + x, region.Y + y, Desktop.Width, Desktop.Height);
+            return ((long)(iy - box.Y) * pitch) + ((long)(ix - box.X) * 4);
+        }
+
+        var origin = OffsetOf(0, 0);
+        var columnTerms = new long[xs.Length];
+        for (var i = 0; i < xs.Length; i++)
+        {
+            columnTerms[i] = OffsetOf(xs[i], 0) - origin;
+        }
+
+        var rowTerms = new long[ys.Length];
+        for (var i = 0; i < ys.Length; i++)
+        {
+            rowTerms[i] = OffsetOf(0, ys[i]) - origin;
+        }
+
+        var reciprocal = (1 << 16) / (samplesX * samplesY);
 
         fixed (byte* output = destination)
+        fixed (long* cols = columnTerms)
+        fixed (long* rowTs = rowTerms)
         {
             var write = output;
+            var start = source + origin;
             for (var oy = 0; oy < outputHeight; oy++)
             {
+                var rowBase = rowTs + (oy * samplesY);
                 for (var ox = 0; ox < outputWidth; ox++)
                 {
+                    var colBase = cols + (ox * samplesX);
                     int b = 0, g = 0, r = 0;
                     for (var ky = 0; ky < samplesY; ky++)
                     {
-                        var desktopY = region.Y + ys[(oy * samplesY) + ky];
+                        var row = start + rowBase[ky];
                         for (var kx = 0; kx < samplesX; kx++)
                         {
-                            var desktopX = region.X + xs[(ox * samplesX) + kx];
-                            var (ix, iy) = OutputGeometry.ToImage(Rotation, desktopX, desktopY, Desktop.Width, Desktop.Height);
-                            var pixel = source + ((iy - box.Y) * pitch) + ((ix - box.X) * 4);
+                            var pixel = row + colBase[kx];
                             b += pixel[0];
                             g += pixel[1];
                             r += pixel[2];
                         }
                     }
 
-                    write[0] = (byte)(b / count);
-                    write[1] = (byte)(g / count);
-                    write[2] = (byte)(r / count);
+                    write[0] = (byte)((b * reciprocal) >> 16);
+                    write[1] = (byte)((g * reciprocal) >> 16);
+                    write[2] = (byte)((r * reciprocal) >> 16);
                     write[3] = 255;
                     write += 4;
                 }

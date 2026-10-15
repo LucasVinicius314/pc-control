@@ -111,7 +111,7 @@ public sealed class DxgiScreenCapturer(IScreenCapturer fallback, ILogger<DxgiScr
         return frame ?? fallback.Capture(source, outputWidth, outputHeight);
     }
 
-    private RawFrame? TryDuplicate(Rect source, int outputWidth, int outputHeight)
+        private RawFrame? TryDuplicate(Rect source, int outputWidth, int outputHeight)
     {
         lock (_gate)
         {
