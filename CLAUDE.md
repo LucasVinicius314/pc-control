@@ -44,5 +44,5 @@ dotnet test
 
 ## Roadmap
 
-Done: 1 skeleton/pairing, 2 trackpad/keyboard, 3 apps/search/PowerToys Run, 4 display scale, 5 previews/screenshot, media panel.
-Next: 6 games and game mode (RPCS3), 7 URL/power/processes, 8 controller overlay, 9 polish (autostart through the per-user Run key, installer, firewall rule, HTTPS decision).
+Done: 1 skeleton/pairing, 2 trackpad/keyboard, 3 apps/search/PowerToys Run, 4 display scale, 5 previews/screenshot, media panel, start with Windows (tray menu; `StartupService` uses the per-user Run key).
+Next: 6 games and game mode (RPCS3), 7 URL/power/processes, 8 controller overlay, 9 polish (installer, firewall rule, HTTPS decision).

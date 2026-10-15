@@ -18,6 +18,8 @@ internal sealed class TrayApplicationContext : ApplicationContext
     private readonly Control _ui = new();
     private readonly NotifyIcon _icon;
     private readonly ToolStripMenuItem _pauseItem = new("Pause remote control") { CheckOnClick = true };
+    private readonly ToolStripMenuItem _startupItem = new("Start with Windows");
+    private readonly PcControl.Windows.StartupService _startup = new();
     private MainForm? _window;
 
     public TrayApplicationContext(
@@ -44,7 +46,10 @@ internal sealed class TrayApplicationContext : ApplicationContext
         _pauseItem.CheckedChanged += (_, _) => _state.Paused = _pauseItem.Checked;
 
         open.Font = new Font(open.Font, FontStyle.Bold);
-        menu.Items.AddRange([open, pair, new ToolStripSeparator(), _pauseItem, new ToolStripSeparator(), logs, new ToolStripSeparator(), quit]);
+        // Windows' own Startup settings can change this, so read it fresh each time the menu opens.
+        menu.Opening += (_, _) => _startupItem.Checked = _startup.IsEnabled;
+        _startupItem.Click += (_, _) => ToggleStartup();
+        menu.Items.AddRange([open, pair, new ToolStripSeparator(), _pauseItem, _startupItem, new ToolStripSeparator(), logs, new ToolStripSeparator(), quit]);
 
         _icon = new NotifyIcon
         {
@@ -139,6 +144,21 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
         // The tray tooltip is limited to 63 characters.
         _icon.Text = _state.Paused ? text + " (paused)" : text;
+    }
+
+    private void ToggleStartup()
+    {
+        var enable = !_startup.IsEnabled;
+        try
+        {
+            _startup.SetEnabled(enable);
+            Log.Information("Start with Windows {State}", enable ? "turned on" : "turned off");
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or System.Security.SecurityException or IOException)
+        {
+            Log.Warning(ex, "Could not change Start with Windows");
+            MessageBox.Show($"Windows would not let PC Control change its startup setting:{Environment.NewLine}{ex.Message}", "PC Control", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
     }
 
     private static void OpenFolder(string path) =>
