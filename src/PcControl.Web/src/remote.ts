@@ -275,6 +275,7 @@ export function showRemote(
     toastTimer = window.setTimeout(() => (toast.hidden = true), 5000);
   };
 
+  const mediaButton = iconButton("media", "Media", () => void togglePanel(mediaPanel));
   const settingsButton = iconButton("settings", "Settings", () => void togglePanel(settings));
 
   const toolbar = document.createElement("nav");
@@ -293,6 +294,7 @@ export function showRemote(
       if (document.visibilityState === "visible") void refreshDpi();
     });
   }
+  if (capabilities["media"] !== false && capabilities["keyboard"] !== false) toolbar.append(mediaButton);
   toolbar.append(settingsButton);
 
   // ---- special keys ----------------------------------------------------------------------------
@@ -336,6 +338,62 @@ export function showRemote(
     row(key("Home", "Home"), key("End", "End"), key("PgUp", "PageUp"), key("PgDn", "PageDown")),
     row(...fKeys.slice(0, 6)),
     row(...fKeys.slice(6)),
+  );
+
+  // ---- media -----------------------------------------------------------------------------------
+  // Holding a seek or volume button keeps repeating it, like holding the key on a keyboard.
+  const repeatKey = (label: string, code: string, title: string) => {
+    const b = button(label, "key");
+    b.title = title;
+    b.setAttribute("aria-label", title);
+    let delay = 0;
+    let timer = 0;
+    const stop = () => {
+      window.clearTimeout(delay);
+      window.clearInterval(timer);
+    };
+    b.addEventListener("pointerdown", () => {
+      input.key(code, "press");
+      stop();
+      delay = window.setTimeout(() => (timer = window.setInterval(() => input.key(code, "press"), 120)), 400);
+    });
+    for (const ev of ["pointerup", "pointercancel", "pointerleave"]) b.addEventListener(ev, stop);
+    return b;
+  };
+  const tap = (label: string, code: string, title: string) => {
+    const b = button(label, "key", () => input.key(code, "press"));
+    b.title = title;
+    b.setAttribute("aria-label", title);
+    return b;
+  };
+
+  const mediaPanel = document.createElement("div");
+  mediaPanel.className = "drawer";
+  mediaPanel.hidden = true;
+  mediaPanel.append(
+    row(
+      tap("⏮", "MediaTrackPrevious", "Previous"),
+      tap("⏯", "MediaPlayPause", "Play / pause"),
+      tap("⏭", "MediaTrackNext", "Next"),
+      tap("⛶ F", "KeyF", "Fullscreen (F)"),
+    ),
+    row(
+      repeatKey("«10", "KeyJ", "Back 10 s (J)"),
+      repeatKey("◀ 5", "ArrowLeft", "Back 5 s (left arrow)"),
+      repeatKey("5 ▶", "ArrowRight", "Forward 5 s (right arrow)"),
+      repeatKey("10»", "KeyL", "Forward 10 s (L)"),
+    ),
+    row(
+      repeatKey("🔉", "AudioVolumeDown", "PC volume down"),
+      tap("🔇", "AudioVolumeMute", "Mute the PC"),
+      repeatKey("🔊", "AudioVolumeUp", "PC volume up"),
+    ),
+    row(
+      repeatKey("▼ player", "ArrowDown", "Player volume down (down arrow)"),
+      repeatKey("▲ player", "ArrowUp", "Player volume up (up arrow)"),
+      tap("Space", "Space", "Pause in the player (Space)"),
+      tap("Esc", "Escape", "Leave fullscreen (Esc)"),
+    ),
   );
 
   // ---- settings --------------------------------------------------------------------------------
@@ -480,8 +538,9 @@ export function showRemote(
   panelButtons.set(appsPanel.element, appsButton);
   panelButtons.set(drawer, keysButton);
   panelButtons.set(viewSheet, viewButton);
+  panelButtons.set(mediaPanel, mediaButton);
   panelButtons.set(settings, settingsButton);
-  screen.append(header, pad, appsPanel.element, viewSheet, settings, drawer, toolbar, keyboard.element);
+  screen.append(header, pad, appsPanel.element, viewSheet, settings, drawer, mediaPanel, toolbar, keyboard.element);
   root.replaceChildren(screen);
   root.classList.add("fill");
 

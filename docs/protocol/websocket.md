@@ -74,7 +74,8 @@ Frames sent while the connection is not open are dropped, never queued.
 `BracketRight`, `Semicolon`, `Quote`, `Backquote`, `Backslash`, `Comma`, `Period`, `Slash`.
 
 Anything else is refused with `unknown_key`: a phone cannot send arbitrary virtual-key codes.
-Media keys arrive in milestone 7.
+Media keys: `MediaPlayPause`, `MediaTrackNext`, `MediaTrackPrevious`, `MediaStop`, `AudioVolumeMute`,
+`AudioVolumeDown`, `AudioVolumeUp`. They go to the active player / the system volume.
 
 ## Previews
 

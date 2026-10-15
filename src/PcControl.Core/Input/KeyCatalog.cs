@@ -98,6 +98,15 @@ public static class KeyCatalog
             ["Comma"] = new(0xBC, false),
             ["Period"] = new(0xBE, false),
             ["Slash"] = new(0xBF, false),
+
+            // Media keys: Windows sends these to whichever player is active, and the volume ones to the system.
+            ["MediaPlayPause"] = new(0xB3, true),
+            ["MediaTrackNext"] = new(0xB0, true),
+            ["MediaTrackPrevious"] = new(0xB1, true),
+            ["MediaStop"] = new(0xB2, true),
+            ["AudioVolumeMute"] = new(0xAD, true),
+            ["AudioVolumeDown"] = new(0xAE, true),
+            ["AudioVolumeUp"] = new(0xAF, true),
         };
 
         for (var i = 0; i < 26; i++)

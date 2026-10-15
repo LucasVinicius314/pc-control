@@ -71,4 +71,20 @@ public class KeyCatalogTests
     {
         Assert.Equal(expected, KeyCatalog.IsModifier(code));
     }
+
+    [Theory]
+    [InlineData("MediaPlayPause", 0xB3)]
+    [InlineData("MediaTrackNext", 0xB0)]
+    [InlineData("MediaTrackPrevious", 0xB1)]
+    [InlineData("MediaStop", 0xB2)]
+    [InlineData("AudioVolumeMute", 0xAD)]
+    [InlineData("AudioVolumeDown", 0xAE)]
+    [InlineData("AudioVolumeUp", 0xAF)]
+    public void MediaKeys_AreInTheCatalog_AsExtendedKeys(string code, int virtualKey)
+    {
+        Assert.True(KeyCatalog.TryGet(code, out var key));
+        Assert.Equal((ushort)virtualKey, key.VirtualKey);
+        Assert.True(key.Extended);
+        Assert.False(KeyCatalog.IsModifier(code));
+    }
 }
