@@ -4,9 +4,11 @@ A Windows 11 tray app that turns your phone into a TV-style remote for the PC: t
 app and game launcher, cursor magnifier and a DPI toggle. The phone opens a web page served by the PC
 over the home Wi-Fi; there is nothing to install on the phone.
 
-Status: **milestones 1 to 5 of 9** (pairing, trackpad and keyboard, app launcher and PowerToys Run,
-display scale toggle, screen previews). See [docs/launcher.md](docs/launcher.md) and
-[docs/display-scale.md](docs/display-scale.md) for how those two work and what to do if they stop. See the build order in the project plan.
+Status: **milestones 1 to 5 of 9, plus media controls** (pairing, trackpad and keyboard, app launcher
+and PowerToys Run, display scale toggle, screen previews and screenshot, a media panel with
+play/pause, tracks, seek, fullscreen and volume). Still to come: games and game mode, URL / power /
+processes, controller overlay, autostart and installer. See [docs/launcher.md](docs/launcher.md) and
+[docs/display-scale.md](docs/display-scale.md) for how those work and what to do if they stop.
 
 ## Layout
 
