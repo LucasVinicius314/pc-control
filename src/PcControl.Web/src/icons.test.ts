@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ICONS, type IconName } from "./icons";
 
-const TOOLBAR: IconName[] = ["keyboard", "leftClick", "rightClick", "keys", "view", "dpi", "settings"];
+const TOOLBAR: IconName[] = ["keyboard", "leftClick", "rightClick", "keys", "apps", "search", "view", "dpi", "settings"];
 
 describe("toolbar icons", () => {
   it("has a drawing for every toolbar button", () => {

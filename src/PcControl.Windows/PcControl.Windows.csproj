@@ -5,6 +5,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="PcControl.Tests" />
     <ProjectReference Include="..\PcControl.Core\PcControl.Core.csproj" />
   </ItemGroup>
   <ItemGroup>

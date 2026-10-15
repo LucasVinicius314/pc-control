@@ -17,6 +17,33 @@ public sealed record AppConfig
     public InputConfig Input { get; init; } = new();
 
     public DpiConfig Dpi { get; init; } = new();
+
+    public LauncherConfig Launcher { get; init; } = new();
+
+    public CaptureConfig Capture { get; init; } = new();
+}
+
+public sealed record CaptureConfig
+{
+    /// <summary>
+    /// How the screen is read for the previews: "auto" (the default) uses Desktop Duplication and falls
+    /// back to the older GDI capture if that is not possible; "gdi" always uses the older method. The
+    /// older method re-reads the whole screen every time and, on some systems, makes the mouse cursor
+    /// flicker, so "gdi" is mainly for comparing.
+    /// </summary>
+    public string Method { get; init; } = "auto";
+}
+
+public sealed record LauncherConfig
+{
+    /// <summary>
+    /// The key combination that opens PowerToys Run on the PC, for example "Win+Shift+Space". "auto"
+    /// (the default) reads it from PowerToys' own settings and falls back to Alt+Space, PowerToys' default.
+    /// </summary>
+    public string PowerToysRunShortcut { get; init; } = "auto";
+
+    /// <summary>How many recently launched apps are remembered.</summary>
+    public int RecentCount { get; init; } = 20;
 }
 
 public sealed record DpiConfig

@@ -45,6 +45,23 @@ public static class ConfigValidator
             errors.Add($"input.pointerGain must be between 0.1 and 20 (was {config.Input.PointerGain}).");
         }
 
+        if (config.Capture.Method?.Trim().ToLowerInvariant() is not ("auto" or "gdi"))
+        {
+            errors.Add($"capture.method must be \"auto\" or \"gdi\" (was \"{config.Capture.Method}\").");
+        }
+
+        var launcher = config.Launcher;
+        if (!string.Equals(launcher.PowerToysRunShortcut?.Trim(), "auto", StringComparison.OrdinalIgnoreCase)
+            && !Input.Shortcut.TryParse(launcher.PowerToysRunShortcut, out _))
+        {
+            errors.Add($"launcher.powerToysRunShortcut must be \"auto\" or a key combination such as \"Alt+Space\" or \"Win+Shift+Space\" (was \"{launcher.PowerToysRunShortcut}\").");
+        }
+
+        if (launcher.RecentCount is < 1 or > Apps.AppsService.MaxRecent)
+        {
+            errors.Add($"launcher.recentCount must be between 1 and {Apps.AppsService.MaxRecent} (was {launcher.RecentCount}).");
+        }
+
         var dpi = config.Dpi;
         if (!Display.DpiScaleTable.IsKnownScale(dpi.LowPercent) || !Display.DpiScaleTable.IsKnownScale(dpi.HighPercent))
         {

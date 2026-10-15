@@ -7,6 +7,7 @@ import { KeyboardInput } from "./keyboard";
 import { MODIFIER_CODES, Modifiers } from "./modifiers";
 import { Link, type LinkState } from "./socket";
 import { loadPrefs, ViewClient } from "./views";
+import { createAppsPanel } from "./apps";
 import { badgeText, changedMessage, failureMessage } from "./dpi";
 import { icon, type IconName } from "./icons";
 import { DISPLAY_FPS, MINI_ZOOMS, nextCorner, type ViewPrefs } from "./viewlogic";
@@ -205,8 +206,29 @@ export function showRemote(
       panel.hidden = false;
       panelButtons.get(panel)?.classList.add("on");
     }
+    // The launcher is a long list, so it takes the trackpad's place while it is open.
+    screen.classList.toggle("apps-open", !appsPanel.element.hidden);
     return opening;
   };
+
+  const appsPanel = createAppsPanel(
+    {
+      onLaunched: (name) => {
+        togglePanel(appsPanel.element); // close the launcher so the app can be seen on the preview
+        showToast(`Launching ${name}…`);
+      },
+      onProblem: (message) => showToast(message),
+      onPowerToysOpened: (message) => {
+        togglePanel(appsPanel.element);
+        keyboard.show(); // PowerToys Run is waiting for typing
+        showToast(message);
+      },
+    },
+    capabilities["powerToysRun"] !== false,
+  );
+  const appsButton = iconButton("apps", "Apps", () => {
+    if (togglePanel(appsPanel.element)) void appsPanel.open();
+  });
 
   const keysButton = iconButton("keys", "Special keys", () => void togglePanel(drawer));
   const viewButton = iconButton("view", "Screen preview", () => {
@@ -261,6 +283,7 @@ export function showRemote(
   if (capabilities["keyboard"] !== false) toolbar.append(keyboardButton);
   toolbar.append(leftButton, rightButton);
   if (capabilities["keyboard"] !== false) toolbar.append(keysButton);
+  if (capabilities["appLauncher"] !== false) toolbar.append(appsButton);
   if (capabilities["magnifier"] !== false || capabilities["screenshot"] !== false) toolbar.append(viewButton);
   if (capabilities["dpiToggle"] === true) {
     toolbar.append(dpiButton);
@@ -454,10 +477,11 @@ export function showRemote(
 
   const screen = document.createElement("div");
   screen.className = "remote";
+  panelButtons.set(appsPanel.element, appsButton);
   panelButtons.set(drawer, keysButton);
   panelButtons.set(viewSheet, viewButton);
   panelButtons.set(settings, settingsButton);
-  screen.append(header, pad, viewSheet, settings, drawer, toolbar, keyboard.element);
+  screen.append(header, pad, appsPanel.element, viewSheet, settings, drawer, toolbar, keyboard.element);
   root.replaceChildren(screen);
   root.classList.add("fill");
 

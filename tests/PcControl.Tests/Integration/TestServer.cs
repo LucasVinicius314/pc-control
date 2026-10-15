@@ -7,8 +7,10 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.Extensions.DependencyInjection;
+using PcControl.Core.Apps;
 using PcControl.Core.Config;
 using PcControl.Core.Display;
+using PcControl.Core.Input;
 using PcControl.Core.Pairing;
 using PcControl.Host;
 using PcControl.Host.Web;
@@ -22,18 +24,21 @@ internal sealed class TestServer : IAsyncDisposable
     private readonly CookieContainer _cookies = new();
     private readonly HttpClientHandler _handler;
 
-    private TestServer(WebApplication app, PinService pins, DeviceRegistry registry, RemoteControlState state, AppConfig config, FakeInjector injector, FakeScreen screen, DeviceConnections connections, FakeScaleBackend scale, DpiToggleService dpi)
+    private TestServer(WebApplication app, ServerDependencies deps, FakeInjector injector, FakeScreen screen, FakeScaleBackend scale, FakeCatalog catalog, MemoryStateStore appsStore, PowerToysSettingsHolder powerToysSettings)
     {
         _app = app;
         Scale = scale;
-        Dpi = dpi;
+        Dpi = deps.Dpi;
         Screen = screen;
-        Connections = connections;
+        Connections = deps.Connections;
         Injector = injector;
-        Pins = pins;
-        Registry = registry;
-        State = state;
-        Config = config;
+        Pins = deps.Pins;
+        Registry = deps.Registry;
+        State = deps.State;
+        Config = deps.Config;
+        Catalog = catalog;
+        AppsStore = appsStore;
+        PowerToys = powerToysSettings;
 
         var address = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.First();
         Port = new Uri(address.Replace("[::]", "127.0.0.1", StringComparison.Ordinal)).Port;
@@ -48,6 +53,18 @@ internal sealed class TestServer : IAsyncDisposable
     public FakeScreen Screen { get; }
 
     public FakeScaleBackend Scale { get; }
+
+    public FakeCatalog Catalog { get; }
+
+    public MemoryStateStore AppsStore { get; }
+
+    /// <summary>The text of PowerToys' settings file as the server will read it; null means PowerToys is not installed.</summary>
+    public PowerToysSettingsHolder PowerToys { get; }
+
+    public sealed class PowerToysSettingsHolder
+    {
+        public string? Json { get; set; }
+    }
 
     public DpiToggleService Dpi { get; }
 
@@ -90,9 +107,24 @@ internal sealed class TestServer : IAsyncDisposable
         var scale = new FakeScaleBackend();
         var dpi = new DpiToggleService(screen, [scale], config.Dpi, _ => Task.CompletedTask);
         dpi.Check();
-        var app = ServerFactory.Build(config, pins, limiter, registry, state, connections, injector, screen, screen, dpi);
+        var catalog = new FakeCatalog
+        {
+            Apps =
+            [
+                AppEntry.Create("Notepad", "notepad-id"),
+                AppEntry.Create("Calculator", "calc-id"),
+                AppEntry.Create("Édge", "edge-id"),
+            ],
+        };
+        var appsStore = new MemoryStateStore();
+        var apps = new AppsService(catalog, appsStore, time, config.Launcher.RecentCount, cacheLifetime: TimeSpan.Zero);
+        var powerToysSettings = new PowerToysSettingsHolder();
+        var powerToys = new PowerToysShortcutResolver(config.Launcher, () => powerToysSettings.Json);
+
+        var deps = new ServerDependencies(config, pins, limiter, registry, state, connections, injector, screen, screen, dpi, apps, powerToys);
+        var app = ServerFactory.Build(deps);
         await app.StartAsync();
-        return new TestServer(app, pins, registry, state, config, injector, screen, connections, scale, dpi);
+        return new TestServer(app, deps, injector, screen, scale, catalog, appsStore, powerToysSettings);
     }
 
     /// <summary>Issues a PIN and pairs through the real endpoint. Returns the session JSON.</summary>

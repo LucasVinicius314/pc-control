@@ -8,6 +8,11 @@ public readonly record struct Rect(int X, int Y, int Width, int Height)
     public int Bottom => Y + Height;
 
     public bool Contains(int x, int y) => x >= X && x < Right && y >= Y && y < Bottom;
+
+    /// <summary>True when the two rectangles share at least one pixel. Empty rectangles share nothing.</summary>
+    public bool Intersects(Rect other) =>
+        Width > 0 && Height > 0 && other.Width > 0 && other.Height > 0
+        && X < other.Right && other.X < Right && Y < other.Bottom && other.Y < Bottom;
 }
 
 public sealed record MonitorInfo(int Index, string Name, Rect Bounds, bool IsPrimary);

@@ -29,6 +29,8 @@ contract bumps `protocolVersion` (see `ProtocolInfo.Version` in `PcControl.Core`
 - Milestone 5 (pulled forward): live previews over the WebSocket (mini preview around the cursor and
   whole-display preview), `GET /api/monitors` and `GET /api/screenshot`.
 
+- Milestone 3: the app launcher (`/api/apps`, icons, launch, favorites) and the PowerToys Run button
+  (`POST /api/powertoys-run`). Actions are refused with `409 paused` while the kill switch is on.
 - Milestone 4: `GET /api/dpi` and `POST /api/dpi/toggle` (display scale 100% / 200%), and the
   `dpiToggle` capability, which is only on when the startup self-test passed.
 

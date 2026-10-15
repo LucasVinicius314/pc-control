@@ -12,18 +12,12 @@ namespace PcControl.Host.Web;
 
 internal static class ServerFactory
 {
-    public static WebApplication Build(
-        AppConfig config,
-        PinService pins,
-        PairingRateLimiter limiter,
-        DeviceRegistry registry,
-        RemoteControlState state,
-        DeviceConnections connections,
-        IInputInjector injector,
-        IScreenCapturer capturer,
-        IJpegEncoder encoder,
-        DpiToggleService dpi)
+    public static WebApplication Build(ServerDependencies services)
     {
+        ArgumentNullException.ThrowIfNull(services);
+
+        var (config, pins, limiter, registry, state, connections, injector, capturer, encoder, dpi, apps, powerToys) = services;
+
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions
         {
             ContentRootPath = AppContext.BaseDirectory,
@@ -49,6 +43,8 @@ internal static class ServerFactory
         builder.Services.AddSingleton(capturer);
         builder.Services.AddSingleton(encoder);
         builder.Services.AddSingleton(dpi);
+        builder.Services.AddSingleton(apps);
+        builder.Services.AddSingleton(powerToys);
         builder.Services.AddSingleton(new PointerCurve(config.Input.PointerGain));
 
         builder.Services.AddAuthentication(DeviceAuth.Scheme)

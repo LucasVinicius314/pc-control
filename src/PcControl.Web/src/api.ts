@@ -35,6 +35,19 @@ export interface DpiStatus {
   backend: string | null;
 }
 
+export interface AppItem {
+  id: string;
+  name: string;
+  favorite: boolean;
+}
+
+export interface AppsResponse {
+  apps: AppItem[];
+  /** Ids of recently launched apps, newest first. */
+  recent: string[];
+  launcher: { powerToysRunShortcut: string; powerToysDetected: boolean };
+}
+
 export interface DpiChange {
   previous: number;
   percent: number;
@@ -86,6 +99,10 @@ export const api = {
   monitors: () => request<Monitor[]>("GET", "/api/monitors"),
   dpi: () => request<DpiStatus>("GET", "/api/dpi"),
   toggleDpi: () => request<DpiChange>("POST", "/api/dpi/toggle"),
+  apps: () => request<AppsResponse>("GET", "/api/apps"),
+  launchApp: (id: string) => request<{ launched: boolean; name: string }>("POST", `/api/apps/${id}/launch`),
+  setFavorite: (id: string, favorite: boolean) => request<void>("PUT", `/api/apps/${id}/favorite`, { favorite }),
+  powerToysRun: () => request<void>("POST", "/api/powertoys-run"),
   pair: (pin: string, deviceName: string) =>
     request<Session>("POST", "/api/pair", { pin, deviceName }),
   unpair: () => request<void>("DELETE", "/api/session"),

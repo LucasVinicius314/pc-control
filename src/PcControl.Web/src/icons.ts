@@ -2,7 +2,7 @@
 // text colour so they follow the button's state (normal, active, disabled). No icon library, no
 // images to load: each one is a few shapes.
 
-export type IconName = "keyboard" | "leftClick" | "rightClick" | "keys" | "view" | "dpi" | "settings";
+export type IconName = "keyboard" | "leftClick" | "rightClick" | "keys" | "apps" | "search" | "view" | "dpi" | "settings";
 
 interface Shape {
   tag: "path" | "rect" | "circle";
@@ -39,6 +39,17 @@ export const ICONS: Record<IconName, Shape[]> = {
     { tag: "rect", attrs: { x: "3", y: "4", width: "18", height: "16", rx: "3.5" } },
     path("M8.5 14.5 12 11l3.5 3.5"),
   ],
+
+  // Four tiles: the app launcher.
+  apps: [
+    { tag: "rect", attrs: { x: "3", y: "3", width: "7", height: "7", rx: "1.8" } },
+    { tag: "rect", attrs: { x: "14", y: "3", width: "7", height: "7", rx: "1.8" } },
+    { tag: "rect", attrs: { x: "3", y: "14", width: "7", height: "7", rx: "1.8" } },
+    { tag: "rect", attrs: { x: "14", y: "14", width: "7", height: "7", rx: "1.8" } },
+  ],
+
+  // A magnifying glass: search, and the PowerToys Run button.
+  search: [{ tag: "circle", attrs: { cx: "11", cy: "11", r: "6.5" } }, path("M20 20l-4.2-4.2")],
 
   // An eye: the screen previews.
   view: [

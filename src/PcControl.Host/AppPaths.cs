@@ -14,6 +14,20 @@ internal static class AppPaths
 
     public static string DevicesFile { get; } = Path.Combine(Root, "devices.json");
 
+    /// <summary>Favorites and recently launched apps.</summary>
+    public static string AppsFile { get; } = Path.Combine(Root, "apps.json");
+
+    /// <summary>App icons already converted to PNG.</summary>
+    public static string IconsDirectory { get; } = Path.Combine(Root, "icons");
+
+    /// <summary>PowerToys keeps its Run settings here; the PowerToys Run button reads its shortcut from it.</summary>
+    public static string PowerToysRunSettingsFile { get; } = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "Microsoft",
+        "PowerToys",
+        "PowerToys Run",
+        "settings.json");
+
     private static string ResolveRoot()
     {
         var custom = Environment.GetEnvironmentVariable("PCCONTROL_DATA_DIR");

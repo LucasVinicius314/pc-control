@@ -1,5 +1,8 @@
+using PcControl.Core.Apps;
+using PcControl.Core.Capture;
 using PcControl.Core.Config;
 using PcControl.Core.Display;
+using PcControl.Core.Input;
 using PcControl.Windows;
 using Microsoft.Extensions.Logging;
 using PcControl.Core.Pairing;
@@ -49,6 +52,7 @@ internal static class Program
                 Path.Combine(AppPaths.LogsDirectory, "pc-control-.log"),
                 rollingInterval: RollingInterval.Day,
                 retainedFileCountLimit: 14,
+                formatProvider: System.Globalization.CultureInfo.InvariantCulture,
                 outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}")
             .CreateLogger();
 
@@ -88,7 +92,12 @@ internal static class Program
         var injector = new SendInputInjector(new Serilog.Extensions.Logging.SerilogLoggerFactory(Log.Logger).CreateLogger<SendInputInjector>());
         Log.Information("Per-monitor DPI awareness (v2): {Aware}", DpiAwareness.IsPerMonitorV2());
 
-        var screen = new GdiScreenCapturer();
+        // Desktop Duplication reads the screen without disturbing the mouse cursor and does no work
+        // while nothing changes; the older GDI capture is only the fallback.
+        var gdiScreen = new GdiScreenCapturer();
+        using var dxgiScreen = new DxgiScreenCapturer(gdiScreen, new Serilog.Extensions.Logging.SerilogLoggerFactory(Log.Logger).CreateLogger<DxgiScreenCapturer>());
+        IScreenCapturer screen = string.Equals(config.Capture.Method.Trim(), "gdi", StringComparison.OrdinalIgnoreCase) ? gdiScreen : dxgiScreen;
+        Log.Information("Screen capture method: {Method}", screen is DxgiScreenCapturer ? "Desktop Duplication (GDI as fallback)" : "GDI (chosen in config.json)");
         var loggers = new Serilog.Extensions.Logging.SerilogLoggerFactory(Log.Logger);
 
         // Try the ways of reading and changing the display scale in order. The first two use Windows'
@@ -114,7 +123,22 @@ internal static class Program
             Log.Warning("Display scale toggle switched off: {Reason}", dpiStatus.Reason);
         }
 
-        var app = ServerFactory.Build(config, pins, limiter, registry, state, connections, injector, screen, new GdiPlusJpegEncoder(), dpi);
+        var apps = new AppsService(
+            new ShellAppCatalog(AppPaths.IconsDirectory, loggers.CreateLogger<ShellAppCatalog>()),
+            new JsonAppsStateStore(AppPaths.AppsFile),
+            time,
+            config.Launcher.RecentCount);
+        var powerToys = new PowerToysShortcutResolver(
+            config.Launcher,
+            () => File.Exists(AppPaths.PowerToysRunSettingsFile) ? File.ReadAllText(AppPaths.PowerToysRunSettingsFile) : null);
+        var shortcut = powerToys.Resolve();
+        Log.Information(
+            "PowerToys Run button will press {Shortcut} ({Source})",
+            shortcut.Shortcut,
+            shortcut.FromPowerToys ? "read from PowerToys' settings" : "from config or the default");
+
+        var app = ServerFactory.Build(new ServerDependencies(
+            config, pins, limiter, registry, state, connections, injector, screen, new GdiPlusJpegEncoder(), dpi, apps, powerToys));
 
         try
         {

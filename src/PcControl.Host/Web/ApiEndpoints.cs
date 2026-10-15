@@ -47,6 +47,8 @@ internal static class ApiEndpoints
             return Capabilities.Build(config, implemented);
         });
 
+        AppEndpoints.Map(secured);
+
         secured.MapGet("/dpi", GetDpi);
         secured.MapPost("/dpi/toggle", ToggleDpi);
 
@@ -69,8 +71,24 @@ internal static class ApiEndpoints
         });
     }
 
-    private static async Task<IResult> ToggleDpi(HttpContext context, DpiToggleService dpi, ILogger<PairRequest> logger)
+    /// <summary>
+    /// The answer for any action that changes the PC while the tray's kill switch is on, or null when
+    /// the action may go ahead. Reading things (lists, previews) stays allowed; doing things does not.
+    /// </summary>
+    internal static IResult? RefusedWhilePaused(RemoteControlState state) =>
+        state.Paused
+            ? Results.Json(
+                new { error = "paused", message = "Remote control is paused on the PC." },
+                statusCode: StatusCodes.Status409Conflict)
+            : null;
+
+    private static async Task<IResult> ToggleDpi(HttpContext context, DpiToggleService dpi, RemoteControlState state, ILogger<PairRequest> logger)
     {
+        if (RefusedWhilePaused(state) is { } paused)
+        {
+            return paused;
+        }
+
         var result = await dpi.ToggleAsync();
         var monitor = result.Monitor is { } m ? new { index = m.Index, name = m.Name } : null;
 

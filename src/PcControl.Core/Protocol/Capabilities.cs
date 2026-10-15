@@ -14,7 +14,7 @@ public static class Capabilities
 
     /// <summary>Features whose code exists in this build. Grows milestone by milestone.</summary>
     public static readonly IReadOnlySet<string> Implemented =
-        new HashSet<string>(StringComparer.Ordinal) { "trackpad", "keyboard", "magnifier", "screenshot" };
+        new HashSet<string>(StringComparer.Ordinal) { "trackpad", "keyboard", "magnifier", "screenshot", "appLauncher", "search", "powerToysRun" };
 
     public static IReadOnlyDictionary<string, bool> Build(AppConfig config) =>
         Build(config, Implemented);

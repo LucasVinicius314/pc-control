@@ -92,6 +92,98 @@ paths:
                   power: false
         "401":
           description: Missing, unknown or revoked token.
+  /api/apps:
+    get:
+      summary: The Start menu, with favorites and recently used apps
+      description: |
+        Reads the Start menu again each time (newly installed apps show up). Apps are identified by an
+        opaque `id` (a hash); the phone never sees or sends the command Windows uses to start them.
+        The list is alphabetical, ignoring case and accents.
+      responses:
+        "200":
+          description: Every app, the recently launched ones, and the PowerToys Run shortcut.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppList"
+        "401":
+          description: Missing, unknown or revoked token.
+  /api/apps/{id}/icon:
+    get:
+      summary: An app's icon as a PNG
+      parameters:
+        - $ref: "#/components/parameters/AppId"
+      responses:
+        "200":
+          description: A 64 pixel PNG with transparency. Cacheable for an hour.
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: Unknown app, or it has no icon (`no_icon`). Show a placeholder.
+  /api/apps/{id}/launch:
+    post:
+      summary: Start an app on the PC
+      description: |
+        Only apps from the list can be started, by their `id`. Refused while the tray's kill switch is
+        on. The launch is logged with the device name.
+      parameters:
+        - $ref: "#/components/parameters/AppId"
+      responses:
+        "200":
+          description: Windows accepted the request.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  launched:
+                    type: boolean
+                  name:
+                    type: string
+        "404":
+          description: Not an app in the Start menu (`unknown_app`).
+        "409":
+          description: The kill switch is on (`paused`).
+        "502":
+          description: Windows could not start it (`launch_failed`).
+  /api/apps/{id}/favorite:
+    put:
+      summary: Mark or unmark a favorite
+      parameters:
+        - $ref: "#/components/parameters/AppId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [favorite]
+              properties:
+                favorite:
+                  type: boolean
+      responses:
+        "204":
+          description: Saved. Works while the kill switch is on, because it changes nothing on the PC.
+        "400":
+          description: "`favorite` missing or not a boolean (`invalid_message`)."
+        "404":
+          description: Unknown app (`unknown_app`).
+  /api/powertoys-run:
+    post:
+      summary: Press the shortcut that opens PowerToys Run
+      description: |
+        Presses the key combination on the PC. With the default setting (`launcher.powerToysRunShortcut`
+        is `auto`) it is read from PowerToys' own settings each time, so it follows what the user chose in
+        PowerToys, falling back to Alt+Space if PowerToys is not found. Afterwards the phone's keyboard
+        types into PowerToys Run. Refused while the kill switch is on.
+      responses:
+        "204":
+          description: The shortcut was pressed.
+        "409":
+          description: The kill switch is on (`paused`).
   /api/dpi:
     get:
       summary: The display scale the toggle controls
@@ -198,6 +290,15 @@ security:
   - deviceCookie: []
   - bearer: []
 components:
+  parameters:
+    AppId:
+      name: id
+      in: path
+      required: true
+      description: An app id from `GET /api/apps`.
+      schema:
+        type: string
+        pattern: "^[0-9a-f]{16}$"
   securitySchemes:
     deviceCookie:
       type: apiKey
@@ -207,6 +308,38 @@ components:
       type: http
       scheme: bearer
   schemas:
+    AppList:
+      type: object
+      required: [apps, recent, launcher]
+      properties:
+        apps:
+          type: array
+          items:
+            type: object
+            required: [id, name, favorite]
+            properties:
+              id:
+                type: string
+                description: 16 lower-case hex characters. Opaque; use it only to ask for this app.
+                example: 3f9a0c51d2b7e684
+              name:
+                type: string
+              favorite:
+                type: boolean
+        recent:
+          type: array
+          description: Ids of recently launched apps that still exist, newest first.
+          items:
+            type: string
+        launcher:
+          type: object
+          properties:
+            powerToysRunShortcut:
+              type: string
+              example: Shift+Win+Space
+            powerToysDetected:
+              type: boolean
+              description: True when the shortcut was read from PowerToys' own settings.
     DpiStatus:
       type: object
       required: [available, lowPercent, highPercent]

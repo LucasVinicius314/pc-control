@@ -81,7 +81,8 @@ public sealed class ViewStreamer(
         var cursorMatters = Options.Stream == ViewChannel.Magnifier;
         if (_lastPixels is not null
             && (!cursorMatters || (plan.CursorX == _lastCursorX && plan.CursorY == _lastCursorY))
-            && frame.Bgra.AsSpan().SequenceEqual(_lastPixels))
+            // The same object means the capturer already knows nothing changed; no need to compare bytes.
+            && (ReferenceEquals(frame.Bgra, _lastPixels) || frame.Bgra.AsSpan().SequenceEqual(_lastPixels)))
         {
             return StepResult.Unchanged;
         }

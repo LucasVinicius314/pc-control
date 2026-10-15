@@ -133,7 +133,8 @@ public class PairingApiTests
         Assert.NotNull(caps);
         Assert.True(caps["trackpad"]);
         Assert.True(caps["keyboard"]);
-        Assert.False(caps["appLauncher"]);
+        Assert.True(caps["appLauncher"]);
+        Assert.False(caps["gameLauncher"]); // not built yet
     }
 
     [Fact]

@@ -464,3 +464,140 @@ button.icon-button.busy {
 .toast[hidden] {
   display: none;
 }
+
+/* ---- app launcher ---- */
+
+.apps-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.apps-panel[hidden] {
+  display: none;
+}
+
+/* The launcher is a long list, so it takes the trackpad's place while it is open. */
+.remote.apps-open .pad {
+  display: none;
+}
+
+.apps-head {
+  display: flex;
+  gap: 8px;
+}
+
+.apps-head input[type="search"] {
+  flex: 1;
+  min-width: 0;
+}
+
+button.powertoys {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  padding: 0 14px;
+  white-space: nowrap;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+
+button.powertoys .icon {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+}
+
+.app-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.app-section {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 0;
+  padding: 10px 6px 6px;
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.app-row {
+  display: flex;
+  align-items: center;
+}
+
+button.app-open {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  gap: 14px;
+  padding: 6px 8px;
+  min-height: 52px;
+  text-align: left;
+  font-weight: 500;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  border-radius: 12px;
+}
+
+button.app-open:active {
+  background: var(--panel);
+}
+
+.app-icon {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+.app-icon.letter {
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.app-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+button.app-star {
+  flex: none;
+  width: 48px;
+  min-height: 52px;
+  padding: 0;
+  font-size: 1.3rem;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+}
+
+button.app-star.on {
+  color: #ffd23f;
+}
+
+.app-empty {
+  padding: 24px 8px;
+  text-align: center;
+}

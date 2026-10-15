@@ -155,7 +155,7 @@ public class CursorStreamerTests
 
         Assert.True(Environment.TickCount64 - before < 1000, "a nudge should not wait for the 5 s poll");
         await cts.CancelAsync();
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => run);
+        await StopAsync(run);
     }
 
     [Fact]
@@ -173,7 +173,7 @@ public class CursorStreamerTests
 
         await WaitForAsync(() => _sent.Count == 2, "the late move");
         await cts.CancelAsync();
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => run);
+        await StopAsync(run);
     }
 
     [Fact]
@@ -192,7 +192,7 @@ public class CursorStreamerTests
 
         Assert.Single(_sent);
         await cts.CancelAsync();
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => run);
+        await StopAsync(run);
     }
 
     [Fact]
@@ -202,6 +202,19 @@ public class CursorStreamerTests
         streamer.Dispose();
 
         streamer.Nudge();
+    }
+
+    /// <summary>Waits for a cancelled loop to end. It either throws or returns, depending on where the cancel landed.</summary>
+    private static async Task StopAsync(Task run)
+    {
+        try
+        {
+            await run;
+        }
+        catch (OperationCanceledException)
+        {
+            // Cancelled while waiting; that is the normal way out.
+        }
     }
 
     private static async Task WaitForAsync(Func<bool> condition, string what)
@@ -233,7 +246,7 @@ public class CursorStreamerTests
         }
 
         await cts.CancelAsync();
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => run);
+        await StopAsync(run);
 
         // 20 moves over about 600 ms: a poll rate of tens per second sees most of them.
         Assert.True(_sent.Count >= 10, $"only {_sent.Count} positions were sent");

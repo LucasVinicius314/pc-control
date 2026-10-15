@@ -22,6 +22,12 @@ public sealed class CursorStreamer : IDisposable
     /// </summary>
     public const int SettleChecks = 4;
 
+    /// <summary>After this long without the cursor moving, check less often.</summary>
+    public static readonly TimeSpan IdleAfter = TimeSpan.FromSeconds(1);
+
+    /// <summary>How often to check while nothing is moving. A phone-driven move still wakes the loop at once through <see cref="Nudge"/>.</summary>
+    public static readonly TimeSpan IdlePollInterval = TimeSpan.FromMilliseconds(50);
+
     private readonly IScreenCapturer _capturer;
     private readonly Func<bool> _isPaused;
     private readonly TimeSpan _pollInterval;
@@ -37,6 +43,10 @@ public sealed class CursorStreamer : IDisposable
         _isPaused = isPaused;
         _pollInterval = pollInterval ?? TimeSpan.FromSeconds(1.0 / PollsPerSecond);
     }
+
+    /// <summary>The wait between checks: the normal short one while the cursor is moving, a longer one once it has rested.</summary>
+    public static TimeSpan IntervalFor(TimeSpan restingFor, TimeSpan activeInterval) =>
+        restingFor >= IdleAfter ? TimeSpan.FromTicks(Math.Max(activeInterval.Ticks, IdlePollInterval.Ticks)) : activeInterval;
 
     /// <summary>Tells the loop the cursor was probably just moved, so it should look now. Cheap and thread-safe.</summary>
     public void Nudge()
@@ -92,10 +102,15 @@ public sealed class CursorStreamer : IDisposable
     {
         ArgumentNullException.ThrowIfNull(send);
 
+        var lastMovedAt = Stopwatch.GetTimestamp();
         while (!cancellationToken.IsCancellationRequested)
         {
             var started = Stopwatch.GetTimestamp();
             var result = await StepAsync(send, cancellationToken);
+            if (result == StepResult.Sent)
+            {
+                lastMovedAt = started;
+            }
 
             // When there is nothing to read (paused, locked) look less often instead of spinning.
             if (result is StepResult.Paused or StepResult.Locked or StepResult.Failed)
@@ -105,7 +120,8 @@ public sealed class CursorStreamer : IDisposable
                 continue;
             }
 
-            var wait = _pollInterval - Stopwatch.GetElapsedTime(started);
+            var interval = IntervalFor(Stopwatch.GetElapsedTime(lastMovedAt), _pollInterval);
+            var wait = interval - Stopwatch.GetElapsedTime(started);
             if (wait <= TimeSpan.Zero || !await _nudged.WaitAsync(wait, cancellationToken))
             {
                 continue; // the poll interval passed; check again
@@ -116,6 +132,7 @@ public sealed class CursorStreamer : IDisposable
             {
                 if (await StepAsync(send, cancellationToken) == StepResult.Sent)
                 {
+                    lastMovedAt = Stopwatch.GetTimestamp();
                     break;
                 }
 

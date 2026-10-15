@@ -8,6 +8,24 @@ public static class KeyCatalog
 {
     private static readonly Dictionary<string, KeyInfo> Keys = Build();
 
+    /// <summary>Every key name in the catalog.</summary>
+    public static IEnumerable<string> Names => Keys.Keys;
+
+    private static readonly Lazy<Dictionary<ushort, string>> ByVirtualKey = new(BuildReverse);
+
+    /// <summary>The catalog name for a Windows virtual-key code, preferring the left-hand modifier keys.</summary>
+    public static bool TryGetByVirtualKey(ushort virtualKey, out string code)
+    {
+        if (ByVirtualKey.Value.TryGetValue(virtualKey, out var name))
+        {
+            code = name;
+            return true;
+        }
+
+        code = string.Empty;
+        return false;
+    }
+
     public static bool TryGet(string? code, out KeyInfo key)
     {
         if (code is not null && Keys.TryGetValue(code, out key))
@@ -24,6 +42,22 @@ public static class KeyCatalog
         || code.StartsWith("Shift", StringComparison.Ordinal)
         || code.StartsWith("Alt", StringComparison.Ordinal)
         || code.StartsWith("Meta", StringComparison.Ordinal);
+
+    private static Dictionary<ushort, string> BuildReverse()
+    {
+        var reverse = new Dictionary<ushort, string>();
+        foreach (var (name, key) in Keys.OrderBy(k => k.Key, StringComparer.Ordinal))
+        {
+            // Names like ShiftLeft sort before ShiftRight, so the left-hand key wins when both map to one code.
+            reverse.TryAdd(key.VirtualKey, name);
+        }
+
+        // The generic modifier codes PowerToys and other tools use.
+        reverse.TryAdd(0x10, "ShiftLeft");
+        reverse.TryAdd(0x11, "ControlLeft");
+        reverse.TryAdd(0x12, "AltLeft");
+        return reverse;
+    }
 
     private static Dictionary<string, KeyInfo> Build()
     {
