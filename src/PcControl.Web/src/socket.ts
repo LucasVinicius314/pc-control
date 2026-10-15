@@ -6,6 +6,10 @@ export interface LinkEvents {
   onState: (state: LinkState) => void;
   /** The server refused or could not apply a message (for example an unknown key). */
   onServerError?: (code: string) => void;
+  /** A picture from the PC (mini preview or display preview). */
+  onBinary?: (data: ArrayBuffer) => void;
+  /** A preview stream changed state, for example because the PC was locked. */
+  onViewStatus?: (stream: string, state: string) => void;
 }
 
 const PING_INTERVAL_MS = 10_000;
@@ -60,6 +64,7 @@ export class Link {
 
     const scheme = location.protocol === "https:" ? "wss:" : "ws:";
     const socket = new WebSocket(`${scheme}//${location.host}/ws`);
+    socket.binaryType = "arraybuffer";
     this.socket = socket;
 
     socket.onmessage = (event) => this.handleMessage(event.data);
@@ -79,10 +84,14 @@ export class Link {
   }
 
   private handleMessage(data: unknown): void {
+    if (data instanceof ArrayBuffer) {
+      this.events.onBinary?.(data);
+      return;
+    }
     if (typeof data !== "string") return;
-    let message: { type?: string; paused?: boolean; code?: string };
+    let message: { type?: string; paused?: boolean; code?: string; stream?: string; state?: string };
     try {
-      message = JSON.parse(data) as { type?: string; paused?: boolean; code?: string };
+      message = JSON.parse(data) as { type?: string; paused?: boolean; code?: string; stream?: string; state?: string };
     } catch {
       return;
     }
@@ -101,6 +110,9 @@ export class Link {
         break;
       case "error":
         if (message.code) this.events.onServerError?.(message.code);
+        break;
+      case "viewStatus":
+        if (message.stream && message.state) this.events.onViewStatus?.(message.stream, message.state);
         break;
     }
   }

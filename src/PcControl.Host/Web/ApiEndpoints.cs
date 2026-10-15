@@ -1,3 +1,4 @@
+using PcControl.Core.Capture;
 using PcControl.Core.Config;
 using PcControl.Core.Pairing;
 using PcControl.Core.Protocol;
@@ -34,6 +35,76 @@ internal static class ApiEndpoints
         secured.MapDelete("/session", Unpair);
 
         secured.MapGet("/capabilities", (AppConfig config) => Capabilities.Build(config));
+
+        secured.MapGet("/monitors", Monitors);
+        secured.MapGet("/screenshot", Screenshot);
+    }
+
+    private static IResult Monitors(AppConfig config, IScreenCapturer capturer)
+    {
+        if (!config.Features.Screenshot)
+        {
+            return Results.Json(new { error = "feature_disabled" }, statusCode: StatusCodes.Status403Forbidden);
+        }
+
+        return Results.Json(capturer.GetMonitors().Select(m => new
+        {
+            index = m.Index,
+            name = m.Name,
+            x = m.Bounds.X,
+            y = m.Bounds.Y,
+            width = m.Bounds.Width,
+            height = m.Bounds.Height,
+            primary = m.IsPrimary,
+        }));
+    }
+
+    private static IResult Screenshot(
+        HttpContext context,
+        AppConfig config,
+        IScreenCapturer capturer,
+        IJpegEncoder encoder,
+        ILogger<PairRequest> logger,
+        int? monitor,
+        int? width)
+    {
+        if (!config.Features.Screenshot)
+        {
+            return Results.Json(new { error = "feature_disabled" }, statusCode: StatusCodes.Status403Forbidden);
+        }
+
+        // Locked screens and UAC prompts cannot be read; say so instead of returning a black picture.
+        var unavailable = Results.Json(new { error = "screen_unavailable" }, statusCode: StatusCodes.Status503ServiceUnavailable);
+        if (!capturer.IsDesktopAvailable())
+        {
+            return unavailable;
+        }
+
+        if (!capturer.TryGetCursor(out var cursorX, out var cursorY))
+        {
+            (cursorX, cursorY) = (RegionPlanner.NoCursor, RegionPlanner.NoCursor);
+        }
+
+        var chosen = RegionPlanner.PickMonitor(capturer.GetMonitors(), monitor ?? ViewOptions.FollowCursor, cursorX, cursorY);
+        if (chosen is null)
+        {
+            return unavailable;
+        }
+
+        var plan = RegionPlanner.Display(chosen.Bounds, cursorX, cursorY, Math.Clamp(width ?? ViewOptions.DefaultDisplayWidth, 160, ViewOptions.MaxDisplayWidth));
+        var frame = capturer.Capture(plan.Source, plan.OutputWidth, plan.OutputHeight);
+        if (frame is null)
+        {
+            return unavailable;
+        }
+
+        logger.LogInformation("{DeviceName} took a screenshot of monitor {Monitor}", context.User.Identity!.Name, chosen.Index);
+
+        // The picture has no mouse cursor; these headers say where it was so the phone can draw one.
+        context.Response.Headers.CacheControl = "no-store";
+        context.Response.Headers["X-Cursor-X"] = plan.CursorX.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        context.Response.Headers["X-Cursor-Y"] = plan.CursorY.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return Results.File(encoder.Encode(frame, ViewStreamer.JpegQuality), "image/jpeg");
     }
 
     private static IResult Pair(

@@ -1,4 +1,6 @@
 using System.Net.WebSockets;
+using PcControl.Core.Capture;
+using PcControl.Core.Config;
 using PcControl.Core.Input;
 using PcControl.Core.Network;
 using PcControl.Core.Protocol;
@@ -19,6 +21,9 @@ internal static class WebSocketEndpoint
         RemoteControlState state,
         IInputInjector injector,
         PointerCurve curve,
+        IScreenCapturer capturer,
+        IJpegEncoder encoder,
+        AppConfig config,
         ILogger<WsConnection> logger)
     {
         if (!context.WebSockets.IsWebSocketRequest)
@@ -48,6 +53,7 @@ internal static class WebSocketEndpoint
 
         using var socket = await context.WebSockets.AcceptWebSocketAsync();
         using var connection = new WsConnection(socket, deviceId, deviceName, new InputSession(injector, curve));
+        await using var views = new ViewManager(connection, capturer, encoder, state, logger);
 
         connections.Add(connection);
         logger.LogInformation("{DeviceName} connected from {Remote}", deviceName, context.Connection.RemoteIpAddress);
@@ -60,7 +66,7 @@ internal static class WebSocketEndpoint
 
             // Never cancel a pending receive: that aborts the socket. Revocation sends a close
             // frame instead and the phone's reply ends this loop.
-            await ReadLoop(connection, state, context.RequestAborted);
+            await ReadLoop(connection, state, views, config, context.RequestAborted);
         }
         catch (OperationCanceledException)
         {
@@ -81,7 +87,12 @@ internal static class WebSocketEndpoint
         await connection.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, string.Empty);
     }
 
-    private static async Task ReadLoop(WsConnection connection, RemoteControlState state, CancellationToken cancellationToken)
+    private static async Task ReadLoop(
+        WsConnection connection,
+        RemoteControlState state,
+        ViewManager views,
+        AppConfig config,
+        CancellationToken cancellationToken)
     {
         var socket = connection.Socket;
         var buffer = new byte[WsMessageParser.MaxMessageBytes];
@@ -111,7 +122,14 @@ internal static class WebSocketEndpoint
             {
                 if (!state.Paused)
                 {
-                    await ReplyIfError(connection, InputDispatcher.HandleBinary(buffer.AsSpan(0, length), connection.Input), cancellationToken);
+                    var dispatched = InputDispatcher.HandleBinary(buffer.AsSpan(0, length), connection.Input);
+                    if (dispatched.ErrorCode is null && length > 0 && buffer[0] == InputDispatcher.MoveFrame)
+                    {
+                        // Tell the display preview right away, so its cursor marker follows the finger.
+                        views.CursorMoved();
+                    }
+
+                    await ReplyIfError(connection, dispatched, cancellationToken);
                 }
 
                 continue;
@@ -127,6 +145,9 @@ internal static class WebSocketEndpoint
             {
                 case WsMessageTypes.Ping:
                     await connection.SendAsync(new { type = WsMessageTypes.Pong }, cancellationToken);
+                    break;
+                case "view":
+                    await HandleView(connection, views, config, message, cancellationToken);
                     break;
                 default:
                     // While the kill switch is on, input is dropped without a reply. The phone has
@@ -145,6 +166,22 @@ internal static class WebSocketEndpoint
                     break;
             }
         }
+    }
+
+    private static Task HandleView(WsConnection connection, ViewManager views, AppConfig config, WsMessage message, CancellationToken cancellationToken)
+    {
+        if (!config.Features.Screenshot)
+        {
+            return connection.SendAsync(new { type = WsMessageTypes.Error, code = "feature_disabled" }, cancellationToken);
+        }
+
+        if (!ViewRequestParser.TryParse(message, out var options))
+        {
+            return connection.SendAsync(new { type = WsMessageTypes.Error, code = "invalid_message" }, cancellationToken);
+        }
+
+        views.Apply(options!);
+        return Task.CompletedTask;
     }
 
     private static Task ReplyIfError(WsConnection connection, DispatchResult result, CancellationToken cancellationToken) =>

@@ -14,7 +14,7 @@ public static class Capabilities
 
     /// <summary>Features whose code exists in this build. Grows milestone by milestone.</summary>
     public static readonly IReadOnlySet<string> Implemented =
-        new HashSet<string>(StringComparer.Ordinal) { "trackpad", "keyboard" };
+        new HashSet<string>(StringComparer.Ordinal) { "trackpad", "keyboard", "magnifier", "screenshot" };
 
     public static IReadOnlyDictionary<string, bool> Build(AppConfig config) =>
         Build(config, Implemented);
@@ -35,7 +35,7 @@ public static class Capabilities
         "power" => toggles.Power,
         "processKiller" => toggles.ProcessKiller,
         "sendUrl" => toggles.UrlOpen,
-        "screenshot" => toggles.Screenshot,
+        "screenshot" or "magnifier" => toggles.Screenshot, // both show the screen, so one switch
         _ => true,
     };
 }

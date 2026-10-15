@@ -83,7 +83,7 @@ internal static class Program
         var injector = new SendInputInjector(new Serilog.Extensions.Logging.SerilogLoggerFactory(Log.Logger).CreateLogger<SendInputInjector>());
         Log.Information("Per-monitor DPI awareness (v2): {Aware}", DpiAwareness.IsPerMonitorV2());
 
-        var app = ServerFactory.Build(config, pins, limiter, registry, state, connections, injector);
+        var app = ServerFactory.Build(config, pins, limiter, registry, state, connections, injector, new GdiScreenCapturer(), new GdiPlusJpegEncoder());
 
         try
         {

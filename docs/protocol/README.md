@@ -26,4 +26,7 @@ contract bumps `protocolVersion` (see `ProtocolInfo.Version` in `PcControl.Core`
 - Milestone 2: input over the WebSocket (mouse move and scroll frames, buttons, keys, text, zoom,
   sensitivity), release-on-disconnect, and the gesture rules.
 
+- Milestone 5 (pulled forward): live previews over the WebSocket (mini preview around the cursor and
+  whole-display preview), `GET /api/monitors` and `GET /api/screenshot`.
+
 Every other endpoint in the plan is added with its milestone and appears here first.

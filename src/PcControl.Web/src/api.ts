@@ -14,6 +14,16 @@ export interface Session {
 
 export type Capabilities = Record<string, boolean>;
 
+export interface Monitor {
+  index: number;
+  name: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  primary: boolean;
+}
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,
@@ -51,6 +61,7 @@ export const api = {
   info: () => request<ServerInfo>("GET", "/api/info"),
   session: () => request<Session>("GET", "/api/session"),
   capabilities: () => request<Capabilities>("GET", "/api/capabilities"),
+  monitors: () => request<Monitor[]>("GET", "/api/monitors"),
   pair: (pin: string, deviceName: string) =>
     request<Session>("POST", "/api/pair", { pin, deviceName }),
   unpair: () => request<void>("DELETE", "/api/session"),

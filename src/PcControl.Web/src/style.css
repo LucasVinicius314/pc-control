@@ -275,3 +275,126 @@ button.key.locked {
   pointer-events: none;
 }
 
+
+/* ---- previews ---- */
+
+.pad {
+  position: relative;
+  overflow: hidden;
+}
+
+canvas[hidden],
+.view-note[hidden] {
+  display: none;
+}
+
+.preview-display {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.pad.has-display .pad-hint {
+  display: none;
+}
+
+.preview-mini {
+  position: absolute;
+  width: min(280px, 62%);
+  aspect-ratio: 280 / 160;
+  object-fit: contain;
+  background: #000;
+  border: 2px solid var(--accent);
+  border-radius: 12px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.55);
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+
+.preview-mini[data-smooth="1"] {
+  image-rendering: auto;
+}
+
+.preview-mini[data-corner="tr"] {
+  top: 8px;
+  right: 8px;
+}
+
+.preview-mini[data-corner="tl"] {
+  top: 8px;
+  left: 8px;
+}
+
+.preview-mini[data-corner="br"] {
+  bottom: 8px;
+  right: 8px;
+}
+
+.preview-mini[data-corner="bl"] {
+  bottom: 8px;
+  left: 8px;
+}
+
+.view-note {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.7);
+  color: var(--warn);
+  font-size: 0.9rem;
+  pointer-events: none;
+}
+
+.settings select {
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px;
+  max-width: 62%;
+}
+
+/* The cursor ring on the display preview. It is moved with a transform from script, not redrawn
+   with each picture, so it can follow the cursor faster than pictures arrive. */
+.cursor-ring {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0 -9px;
+  border: 2px solid #ffd23f;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.85), inset 0 0 0 2px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+  will-change: transform;
+}
+
+.cursor-ring[hidden] {
+  display: none;
+}
+
+/* Nothing on this page is meant to be selected: a long press or a drag would otherwise start
+   selecting text or pop up the copy menu instead of controlling the PC. Text fields are the
+   exception, because some mobile browsers will not type into a field that cannot be selected. */
+html,
+body {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+input,
+textarea,
+select {
+  -webkit-user-select: text;
+  user-select: text;
+}

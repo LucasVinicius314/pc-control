@@ -21,9 +21,10 @@ internal sealed class TestServer : IAsyncDisposable
     private readonly CookieContainer _cookies = new();
     private readonly HttpClientHandler _handler;
 
-    private TestServer(WebApplication app, PinService pins, DeviceRegistry registry, RemoteControlState state, AppConfig config, FakeInjector injector, DeviceConnections connections)
+    private TestServer(WebApplication app, PinService pins, DeviceRegistry registry, RemoteControlState state, AppConfig config, FakeInjector injector, FakeScreen screen, DeviceConnections connections)
     {
         _app = app;
+        Screen = screen;
         Connections = connections;
         Injector = injector;
         Pins = pins;
@@ -40,6 +41,8 @@ internal sealed class TestServer : IAsyncDisposable
     }
 
     public FakeInjector Injector { get; }
+
+    public FakeScreen Screen { get; }
 
     internal DeviceConnections Connections { get; }
 
@@ -59,11 +62,12 @@ internal sealed class TestServer : IAsyncDisposable
 
     public string Origin => $"http://127.0.0.1:{Port}";
 
-    public static async Task<TestServer> StartAsync(int maxFailedAttempts = 5)
+    public static async Task<TestServer> StartAsync(int maxFailedAttempts = 5, bool screenshotsEnabled = true)
     {
         var config = new AppConfig
         {
             Port = 0,
+            Features = new FeatureToggles { Screenshot = screenshotsEnabled },
             Pairing = new PairingConfig { MaxFailedAttempts = maxFailedAttempts, MaxFailuresPerPin = 50 },
         };
 
@@ -75,9 +79,10 @@ internal sealed class TestServer : IAsyncDisposable
         var connections = new DeviceConnections();
 
         var injector = new FakeInjector();
-        var app = ServerFactory.Build(config, pins, limiter, registry, state, connections, injector);
+        var screen = new FakeScreen();
+        var app = ServerFactory.Build(config, pins, limiter, registry, state, connections, injector, screen, screen);
         await app.StartAsync();
-        return new TestServer(app, pins, registry, state, config, injector, connections);
+        return new TestServer(app, pins, registry, state, config, injector, screen, connections);
     }
 
     /// <summary>Issues a PIN and pairs through the real endpoint. Returns the session JSON.</summary>

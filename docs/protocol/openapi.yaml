@@ -92,6 +92,66 @@ paths:
                   power: false
         "401":
           description: Missing, unknown or revoked token.
+  /api/monitors:
+    get:
+      summary: The PC's monitors, left to right
+      description: Needs the `screenshot` feature toggle. The `index` is what the previews and the screenshot take as `monitor`.
+      responses:
+        "200":
+          description: The monitors.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Monitor"
+        "401":
+          description: Missing, unknown or revoked token.
+        "403":
+          description: The screenshot feature is switched off (`feature_disabled`).
+  /api/screenshot:
+    get:
+      summary: A picture of one monitor, on demand
+      description: |
+        A JPEG of the whole monitor. It contains no mouse cursor; `X-Cursor-X` and `X-Cursor-Y` give
+        the cursor's position inside the picture (-1 when it is on another monitor) so the client can
+        draw a marker. Needs the `screenshot` feature toggle.
+      parameters:
+        - name: monitor
+          in: query
+          schema:
+            type: integer
+            default: -1
+          description: Monitor index, or -1 for the monitor the cursor is on.
+        - name: width
+          in: query
+          schema:
+            type: integer
+            default: 720
+            minimum: 160
+            maximum: 1920
+          description: Width in pixels; the picture is never enlarged beyond the monitor.
+      responses:
+        "200":
+          description: The picture.
+          headers:
+            X-Cursor-X:
+              schema:
+                type: integer
+            X-Cursor-Y:
+              schema:
+                type: integer
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        "401":
+          description: Missing, unknown or revoked token.
+        "403":
+          description: The screenshot feature is switched off (`feature_disabled`).
+        "503":
+          description: The screen cannot be read, for example because the PC is locked (`screen_unavailable`).
 security:
   - deviceCookie: []
   - bearer: []
@@ -105,6 +165,24 @@ components:
       type: http
       scheme: bearer
   schemas:
+    Monitor:
+      type: object
+      required: [index, name, x, y, width, height, primary]
+      properties:
+        index:
+          type: integer
+        name:
+          type: string
+        x:
+          type: integer
+        y:
+          type: integer
+        width:
+          type: integer
+        height:
+          type: integer
+        primary:
+          type: boolean
     Info:
       type: object
       required: [app, protocolVersion, paused]

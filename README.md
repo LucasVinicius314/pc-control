@@ -4,7 +4,7 @@ A Windows 11 tray app that turns your phone into a TV-style remote for the PC: t
 app and game launcher, cursor magnifier and a DPI toggle. The phone opens a web page served by the PC
 over the home Wi-Fi; there is nothing to install on the phone.
 
-Status: **milestone 2 of 9** (trackpad and keyboard). See the build order in the project plan.
+Status: **milestones 1, 2 and 5 of 9** (pairing, trackpad and keyboard, screen previews). See the build order in the project plan.
 
 ## Layout
 
@@ -34,8 +34,9 @@ Settings live in `%APPDATA%\PcControl\config.json` (created on first run), logs 
 
 ### Tests that touch the real PC
 
-`SendInputInjectorTests` moves the actual mouse, so it is off unless you ask for it:
+`SendInputInjectorTests` moves the actual mouse and `GdiScreenCapturerTests` reads the real screen,
+so both are off unless you ask for them:
 
 ```powershell
-$env:PCCONTROL_REAL_INPUT = "1"; dotnet test --filter SendInputInjectorTests
+$env:PCCONTROL_REAL_INPUT = "1"; dotnet test --filter "SendInputInjectorTests|GdiScreenCapturerTests"
 ```

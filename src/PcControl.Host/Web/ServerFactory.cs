@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.FileProviders;
+using PcControl.Core.Capture;
 using PcControl.Core.Config;
 using PcControl.Core.Input;
 using PcControl.Core.Pairing;
@@ -17,7 +18,9 @@ internal static class ServerFactory
         DeviceRegistry registry,
         RemoteControlState state,
         DeviceConnections connections,
-        IInputInjector injector)
+        IInputInjector injector,
+        IScreenCapturer capturer,
+        IJpegEncoder encoder)
     {
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions
         {
@@ -41,6 +44,8 @@ internal static class ServerFactory
         builder.Services.AddSingleton(state);
         builder.Services.AddSingleton(connections);
         builder.Services.AddSingleton(injector);
+        builder.Services.AddSingleton(capturer);
+        builder.Services.AddSingleton(encoder);
         builder.Services.AddSingleton(new PointerCurve(config.Input.PointerGain));
 
         builder.Services.AddAuthentication(DeviceAuth.Scheme)

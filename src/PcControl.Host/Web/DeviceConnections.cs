@@ -42,6 +42,22 @@ internal sealed class WsConnection(WebSocket socket, Guid deviceId, string devic
         }
     }
 
+    public async Task SendBinaryAsync(byte[] data)
+    {
+        await _sendLock.WaitAsync();
+        try
+        {
+            if (Socket.State == WebSocketState.Open)
+            {
+                await Socket.SendAsync(data, WebSocketMessageType.Binary, endOfMessage: true, CancellationToken.None);
+            }
+        }
+        finally
+        {
+            _sendLock.Release();
+        }
+    }
+
     /// <summary>Sends a close frame. The read loop ends when the phone answers it.</summary>
     public async Task CloseOutputAsync(WebSocketCloseStatus status, string reason)
     {
