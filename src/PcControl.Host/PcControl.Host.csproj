@@ -36,4 +36,12 @@
       <EmbeddedResource Include="@(WebAsset)" Link="web\%(WebAsset.RecursiveDir)%(WebAsset.Filename)%(WebAsset.Extension)" />
     </ItemGroup>
   </Target>
+
+  <!-- The WebView2 package also references its WPF part. This is a WinForms app, so drop it: it only causes a
+       "WindowsBase" version-conflict warning. -->
+  <Target Name="DropWebView2Wpf" BeforeTargets="ResolveAssemblyReferences">
+    <ItemGroup>
+      <Reference Remove="@(Reference)" Condition="'%(Filename)' == 'Microsoft.Web.WebView2.Wpf'" />
+    </ItemGroup>
+  </Target>
 </Project>

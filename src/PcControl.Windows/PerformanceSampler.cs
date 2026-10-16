@@ -24,6 +24,7 @@ public sealed class PerformanceSampler : IPerformanceSource, IDisposable
     private PerformanceCounter? _cpu;
     private bool _cpuTried;
     private Dictionary<long, (TimeSpan Cpu, ulong Io)> _previousProcesses = [];
+    private HashSet<int> _unreadable = [];
     private (long Received, long Sent)? _previousNetwork;
     private Dictionary<string, CounterSample> _previousGpu = [];
 
@@ -116,6 +117,7 @@ public sealed class PerformanceSampler : IPerformanceSource, IDisposable
     {
         var current = new Dictionary<long, (TimeSpan, ulong)>();
         var groups = new Dictionary<string, Group>(StringComparer.OrdinalIgnoreCase);
+        var stillUnreadable = new HashSet<int>();
 
         foreach (var process in Process.GetProcesses())
         {
@@ -140,28 +142,40 @@ public sealed class PerformanceSampler : IPerformanceSource, IDisposable
                     continue; // the idle "process" is not a program
                 }
 
-                var key = KeyOf(process);
+                // Windows refuses access to some programs (its own, security software). Asking costs an exception
+                // each time, so a program that refused is remembered and not asked again while it keeps running.
+                long key = HashCode.Combine(id, 0L);
                 TimeSpan? cpuTime = null;
-                try
+                ulong io = 0;
+                if (!_unreadable.Contains(id))
                 {
-                    cpuTime = process.TotalProcessorTime;
+                    if (TryReadHandleBased(process, out var readKey, out var readCpu, out var readIo))
+                    {
+                        key = readKey;
+                        cpuTime = readCpu;
+                        io = readIo;
+                    }
+                    else
+                    {
+                        _unreadable.Add(id);
+                    }
                 }
-                catch (Exception ex) when (ex is Win32Exception or InvalidOperationException or NotSupportedException)
+
+                if (_unreadable.Contains(id))
                 {
-                    // Protected: no processor time, so no CPU figure for this one.
+                    stillUnreadable.Add(id);
                 }
 
                 long memory = 0;
                 try
                 {
-                    memory = process.WorkingSet64;
+                    memory = process.WorkingSet64; // from the process list itself: needs no access to the program
                 }
                 catch (Exception ex) when (ex is Win32Exception or InvalidOperationException or NotSupportedException)
                 {
-                    // Protected: no memory figure.
+                    // Gone meanwhile.
                 }
 
-                var io = ReadIo(process);
                 if (cpuTime is { } measured)
                 {
                     current[key] = (measured, io);
@@ -192,24 +206,31 @@ public sealed class PerformanceSampler : IPerformanceSource, IDisposable
         }
 
         _previousProcesses = current;
+        _unreadable = stillUnreadable; // forget programs that ended, so a reused number is asked again
         var anyGpu = gpuByProcess.Count > 0;
         return [.. groups.Select(g => new ProcessUsage(g.Key, g.Value.Count, Math.Clamp(g.Value.Cpu, 0, 100), g.Value.Memory, anyGpu ? g.Value.Gpu ?? 0 : null, g.Value.Io))];
     }
 
-    private static long KeyOf(Process process)
+    /// <summary>
+    /// Everything that needs to open the program: its start time (a process number can be reused, so it is part
+    /// of the identity), processor time and I/O. False if Windows refuses, after only one failed attempt.
+    /// </summary>
+    private static bool TryReadHandleBased(Process process, out long key, out TimeSpan cpu, out ulong io)
     {
-        // A process number can be reused, so the start time is part of the identity.
-        long start;
+        key = 0;
+        cpu = default;
+        io = 0;
         try
         {
-            start = process.StartTime.Ticks;
+            key = HashCode.Combine(process.Id, process.StartTime.Ticks);
+            cpu = process.TotalProcessorTime;
+            io = ReadIo(process);
+            return true;
         }
-        catch (Exception ex) when (ex is Win32Exception or InvalidOperationException)
+        catch (Exception ex) when (ex is Win32Exception or InvalidOperationException or NotSupportedException)
         {
-            start = 0;
+            return false;
         }
-
-        return HashCode.Combine(process.Id, start);
     }
 
     private static unsafe ulong ReadIo(Process process)
