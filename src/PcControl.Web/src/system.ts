@@ -46,7 +46,9 @@ function tile(className: string, iconName: IconName, label: string, hint: string
   b.setAttribute("aria-label", hint);
   const text = document.createElement("span");
   text.textContent = label;
-  b.append(icon(iconName), text);
+  // An icon-only button gets no (empty) label element: it would take up a grid cell and push the icon off centre.
+  if (label === "") b.append(icon(iconName));
+  else b.append(icon(iconName), text);
   return { button: b, label: text };
 }
 
