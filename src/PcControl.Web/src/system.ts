@@ -1,6 +1,7 @@
 // The system panel: open a link on the PC, power buttons, and a list of programs that can be closed.
 
 import { api, type ProcessItem } from "./api";
+import { icon, type IconName } from "./icons";
 import {
   ConfirmGate,
   countdownText,
@@ -28,13 +29,26 @@ export interface SystemPanel {
   open: () => Promise<void>;
 }
 
-const POWER_BUTTONS: { action: PowerName; label: string; hint: string }[] = [
-  { action: "lock", label: "Lock", hint: "Lock the PC" },
-  { action: "sleep", label: "Sleep", hint: "Put the PC to sleep" },
-  { action: "signOut", label: "Sign out", hint: "Sign out of Windows" },
-  { action: "restart", label: "Restart", hint: "Restart the PC" },
-  { action: "shutdown", label: "Shut down", hint: "Shut the PC down" },
+const POWER_BUTTONS: { action: PowerName; label: string; hint: string; icon: IconName }[] = [
+  { action: "lock", label: "Lock", hint: "Lock the PC", icon: "lock" },
+  { action: "sleep", label: "Sleep", hint: "Put the PC to sleep", icon: "sleep" },
+  { action: "signOut", label: "Sign out", hint: "Sign out of Windows (tap twice)", icon: "signOut" },
+  { action: "restart", label: "Restart", hint: "Restart the PC in 15 seconds (tap twice)", icon: "restart" },
+  { action: "shutdown", label: "Shut down", hint: "Shut the PC down in 15 seconds (tap twice)", icon: "power" },
 ];
+
+/** A button with an icon, a short label, and the same words as a tooltip and for screen readers. */
+function tile(className: string, iconName: IconName, label: string, hint: string): { button: HTMLButtonElement; label: HTMLElement } {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = className;
+  b.title = hint;
+  b.setAttribute("aria-label", hint);
+  const text = document.createElement("span");
+  text.textContent = label;
+  b.append(icon(iconName), text);
+  return { button: b, label: text };
+}
 
 function heading(text: string): HTMLElement {
   const h = document.createElement("h2");
@@ -64,9 +78,7 @@ export function createSystemPanel(handlers: SystemPanelHandlers, features: Syste
     input.setAttribute("aria-label", "Web address to open on the PC");
     input.spellcheck = false;
 
-    const open = document.createElement("button");
-    open.type = "button";
-    open.textContent = "Open";
+    const { button: open } = tile("sys-go", "link", "Open", "Open this address in the PC's browser");
 
     const send = async () => {
       const url = input.value.trim();
@@ -87,21 +99,19 @@ export function createSystemPanel(handlers: SystemPanelHandlers, features: Syste
     const row = document.createElement("div");
     row.className = "sys-row";
     row.append(input, open);
-    panel.append(heading("Open a link on the PC"), row);
+    panel.append(heading("Open a link"), row);
   }
 
   // ---- power ------------------------------------------------------------------------------------
   if (features.power) {
     const gate = new ConfirmGate();
-    const buttons = new Map<PowerName, HTMLButtonElement>();
+    const buttons = new Map<PowerName, { button: HTMLButtonElement; label: HTMLElement }>();
 
     const banner = document.createElement("div");
     banner.className = "sys-banner";
     banner.hidden = true;
     const bannerText = document.createElement("span");
-    const cancel = document.createElement("button");
-    cancel.type = "button";
-    cancel.textContent = "Cancel";
+    const { button: cancel } = tile("sys-cancel", "closeX", "Cancel", "Cancel the restart or shutdown");
     banner.append(bannerText, cancel);
 
     const showCountdown = (action: string, secondsLeft: number) => {
@@ -123,8 +133,8 @@ export function createSystemPanel(handlers: SystemPanelHandlers, features: Syste
     const disarmAll = () => {
       gate.reset();
       for (const [action, b] of buttons) {
-        b.classList.remove("armed");
-        b.textContent = POWER_BUTTONS.find((p) => p.action === action)!.label;
+        b.button.classList.remove("armed");
+        b.label.textContent = POWER_BUTTONS.find((p) => p.action === action)!.label;
       }
     };
 
@@ -140,11 +150,9 @@ export function createSystemPanel(handlers: SystemPanelHandlers, features: Syste
 
     const row = document.createElement("div");
     row.className = "sys-power";
-    for (const { action, label, hint } of POWER_BUTTONS) {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.textContent = label;
-      b.title = hint;
+    for (const { action, label, hint, icon: iconName } of POWER_BUTTONS) {
+      const t = tile("power-tile", iconName, label, hint);
+      const b = t.button;
       if (needsConfirmation(action)) b.classList.add("danger");
       b.addEventListener("click", () => {
         if (!needsConfirmation(action)) {
@@ -159,14 +167,14 @@ export function createSystemPanel(handlers: SystemPanelHandlers, features: Syste
         }
         // First tap: ask for a second one, on this button only.
         for (const [other, ob] of buttons) {
-          ob.classList.toggle("armed", other === action);
-          ob.textContent = other === action ? "Tap again to confirm" : POWER_BUTTONS.find((p) => p.action === other)!.label;
+          ob.button.classList.toggle("armed", other === action);
+          ob.label.textContent = other === action ? "Tap again" : POWER_BUTTONS.find((p) => p.action === other)!.label;
         }
         window.setTimeout(() => {
           if (!gate.isArmed(action)) disarmAll();
         }, 4100);
       });
-      buttons.set(action, b);
+      buttons.set(action, t);
       row.append(b);
     }
 
@@ -228,21 +236,22 @@ export function createSystemPanel(handlers: SystemPanelHandlers, features: Syste
         ...items.map((item) => {
           const row = document.createElement("div");
           row.className = "sys-process";
+          const text = document.createElement("div");
+          text.className = "sys-process-text";
           const name = document.createElement("span");
           name.className = "sys-process-title";
           name.textContent = item.title;
-          name.title = item.name;
-          const gentle = document.createElement("button");
-          gentle.type = "button";
-          gentle.textContent = "Close";
+          name.title = item.title;
+          const program = document.createElement("span");
+          program.className = "sys-process-name";
+          program.textContent = item.name;
+          text.append(name, program);
+
+          const gentle = tile("round", "closeX", "", `Close ${item.title}`).button;
           gentle.addEventListener("click", () => void close(item, false));
-          const force = document.createElement("button");
-          force.type = "button";
-          force.className = "danger";
-          force.textContent = "Force";
-          force.title = "End it immediately; unsaved work is lost";
+          const force = tile("round danger", "force", "", `Force close ${item.title}: ends it now, unsaved work is lost`).button;
           force.addEventListener("click", () => void close(item, true));
-          row.append(name, gentle, force);
+          row.append(text, gentle, force);
           return row;
         }),
       );

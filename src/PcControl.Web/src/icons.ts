@@ -2,7 +2,7 @@
 // text colour so they follow the button's state (normal, active, disabled). No icon library, no
 // images to load: each one is a few shapes.
 
-export type IconName = "keyboard" | "leftClick" | "rightClick" | "keys" | "apps" | "search" | "view" | "dpi" | "media" | "power" | "settings";
+export type IconName = "keyboard" | "leftClick" | "rightClick" | "keys" | "apps" | "search" | "view" | "dpi" | "media" | "power" | "settings" | "lock" | "sleep" | "signOut" | "restart" | "closeX" | "force" | "link";
 
 interface Shape {
   tag: "path" | "rect" | "circle";
@@ -69,6 +69,33 @@ export const ICONS: Record<IconName, Shape[]> = {
 
   // The power symbol: a ring with a gap and a bar through it.
   power: [path("M7.5 6.6a7.5 7.5 0 1 0 9 0"), path("M12 3v8")],
+
+  // A padlock.
+  lock: [
+    { tag: "rect", attrs: { x: "5", y: "11", width: "14", height: "9", rx: "2.5" } },
+    path("M8 11V8a4 4 0 0 1 8 0v3"),
+  ],
+
+  // A crescent moon: sleep.
+  sleep: [path("M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z")],
+
+  // An arrow leaving a doorway: sign out.
+  signOut: [path("M10 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4"), path("M15.5 8 20 12l-4.5 4M20 12H10")],
+
+  // A circular arrow: restart.
+  restart: [path("M4.5 12a7.5 7.5 0 1 0 2.4-5.5"), path("M4 4v4.5h4.5")],
+
+  // A cross: close.
+  closeX: [path("M6 6l12 12M18 6 6 18")],
+
+  // A lightning bolt: end it right now.
+  force: [path("M13 3 5 14h6l-1 7 8-11h-6z")],
+
+  // Two chain links: open a link.
+  link: [
+    path("M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"),
+    path("M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"),
+  ],
 
   // Three sliders: settings.
   settings: [
