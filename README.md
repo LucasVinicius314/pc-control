@@ -6,8 +6,8 @@ over the home Wi-Fi; there is nothing to install on the phone.
 
 Status: **milestones 1 to 5 of 9, plus media controls** (pairing, trackpad and keyboard, app launcher
 and PowerToys Run, display scale toggle, screen previews and screenshot, a media panel with
-play/pause, tracks, seek, fullscreen and volume). Still to come: games and game mode, URL / power /
-processes, controller overlay and installer. Right-click the tray icon and tick **Start with Windows** to start it at sign-in (it uses the per-user Run key, so Windows' own Startup settings can switch it off too). See [docs/launcher.md](docs/launcher.md) and
+play/pause, tracks, seek, fullscreen and volume). Still to come: URL / power / processes, the controller
+overlay (which will also hold the game features) and the installer. Right-click the tray icon and tick **Start with Windows** to start it at sign-in (it uses the per-user Run key, so Windows' own Startup settings can switch it off too). See [docs/launcher.md](docs/launcher.md) and
 [docs/display-scale.md](docs/display-scale.md) for how those work and what to do if they stop.
 
 ## Layout
