@@ -50,6 +50,16 @@ public static class ConfigValidator
             errors.Add($"capture.method must be \"auto\" or \"gdi\" (was \"{config.Capture.Method}\").");
         }
 
+        if (string.IsNullOrWhiteSpace(config.Games.Rpcs3Path) || config.Games.Rpcs3Path.Length > 260)
+        {
+            errors.Add("games.rpcs3Path must be \"auto\" or a path of at most 260 characters.");
+        }
+
+        if (double.IsNaN(config.Couch.SeeThrough) || config.Couch.SeeThrough is < 0 or > 0.7)
+        {
+            errors.Add($"couch.seeThrough must be between 0 and 0.7 (was {config.Couch.SeeThrough}).");
+        }
+
         var launcher = config.Launcher;
         if (!string.Equals(launcher.PowerToysRunShortcut?.Trim(), "auto", StringComparison.OrdinalIgnoreCase)
             && !Input.Shortcut.TryParse(launcher.PowerToysRunShortcut, out _))

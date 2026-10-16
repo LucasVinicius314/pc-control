@@ -32,7 +32,7 @@ export interface SystemPanel {
   open: () => Promise<void>;
 }
 
-const POWER_BUTTONS: { action: PowerName; label: string; hint: string; icon: IconName }[] = [
+export const POWER_BUTTONS: { action: PowerName; label: string; hint: string; icon: IconName }[] = [
   { action: "lock", label: "Lock", hint: "Lock the PC", icon: "lock" },
   { action: "sleep", label: "Sleep", hint: "Put the PC to sleep", icon: "sleep" },
   { action: "signOut", label: "Sign out", hint: "Sign out of Windows (tap twice)", icon: "signOut" },

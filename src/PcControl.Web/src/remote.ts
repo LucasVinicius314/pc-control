@@ -9,6 +9,7 @@ import { Link, type LinkState } from "./socket";
 import { loadPrefs, ViewClient } from "./views";
 import { createAppsPanel } from "./apps";
 import { createHub } from "./hub";
+import { createPerformanceView } from "./perf";
 import { createMediaPanel } from "./media";
 import { createSystemPanel, heading } from "./system";
 import { badgeText, changedMessage, failureMessage } from "./dpi";
@@ -300,13 +301,18 @@ export function showRemote(
   // The PC panel: power, and the display scale (it changes the PC's screen, so it lives here).
   const pcPanel = createSystemPanel(say, { url: false, power: capabilities["power"] === true, processes: false, titles: true });
   const showDpi = capabilities["dpiToggle"] === true;
-  const pcButton = iconButton("power", "PC: power and display scale", () => {
-    if (togglePanel(pcPanel.element)) {
-      void pcPanel.open();
-      if (showDpi) void refreshDpi();
-    }
-  });
+  const showPower = capabilities["power"] === true || showDpi;
+  const showPerformance = capabilities["performance"] === true;
+  const perfView = createPerformanceView();
   if (showDpi) pcPanel.element.append(heading("Display"), dpiButton);
+  // "PC" is about this computer: power and display, and how hard it is working.
+  const pcHub = createHub([
+    ...(showPower ? [{ id: "power", label: "Power & display", element: pcPanel.element, onShow: async () => { await pcPanel.open(); if (showDpi) await refreshDpi(); } }] : []),
+    ...(showPerformance ? [{ id: "perf", label: "Performance", element: perfView.element, onShow: () => perfView.start() }] : []),
+  ]);
+  const pcButton = iconButton("power", "PC: power, display and performance", () => {
+    if (togglePanel(pcHub.element)) void pcHub.open();
+  });
   const settingsButton = iconButton("settings", "Settings", () => void togglePanel(settings));
 
   const toolbar = document.createElement("nav");
@@ -318,12 +324,12 @@ export function showRemote(
   if (showApps || showRunning || showLink) toolbar.append(appsButton);
   if (capabilities["media"] !== false && capabilities["keyboard"] !== false) toolbar.append(mediaButton);
   if (capabilities["magnifier"] !== false || capabilities["screenshot"] !== false) toolbar.append(viewButton);
-  if (capabilities["power"] === true || showDpi) {
+  if (showPower || showPerformance) {
     toolbar.append(pcButton);
     if (showDpi) {
       // The scale can be changed on the PC too, so look again whenever the page comes back.
       document.addEventListener("visibilitychange", () => {
-        if (document.visibilityState === "visible" && !pcPanel.element.hidden) void refreshDpi();
+        if (document.visibilityState === "visible" && !pcPanel.element.hidden && !pcHub.element.hidden) void refreshDpi();
       });
     }
   }
@@ -517,9 +523,9 @@ export function showRemote(
   panelButtons.set(drawer, keysButton);
   panelButtons.set(viewSheet, viewButton);
   panelButtons.set(mediaPanel, mediaButton);
-  panelButtons.set(pcPanel.element, pcButton);
+  panelButtons.set(pcHub.element, pcButton);
   panelButtons.set(settings, settingsButton);
-  screen.append(header, pad, launcherHub.element, viewSheet, settings, drawer, mediaPanel, pcPanel.element, toolbar, keyboard.element);
+  screen.append(header, pad, launcherHub.element, viewSheet, settings, drawer, mediaPanel, pcHub.element, toolbar, keyboard.element);
   root.replaceChildren(screen);
   root.classList.add("fill");
 

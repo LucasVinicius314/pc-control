@@ -11,8 +11,10 @@ using PcControl.Core.Actions;
 using PcControl.Core.Apps;
 using PcControl.Core.Config;
 using PcControl.Core.Display;
+using PcControl.Core.Games;
 using PcControl.Core.Input;
 using PcControl.Core.Pairing;
+using PcControl.Core.Performance;
 using PcControl.Core.Theme;
 using PcControl.Host;
 using PcControl.Host.Web;
@@ -26,7 +28,7 @@ internal sealed class TestServer : IAsyncDisposable
     private readonly CookieContainer _cookies = new();
     private readonly HttpClientHandler _handler;
 
-    private TestServer(WebApplication app, ServerDependencies deps, FakeInjector injector, FakeScreen screen, FakeScaleBackend scale, FakeCatalog catalog, MemoryStateStore appsStore, PowerToysSettingsHolder powerToysSettings, FakeUrlOpener urls, FakePowerBackend powerBackend, FakeProcessCatalog processes, FakeTheme theme)
+    private TestServer(WebApplication app, ServerDependencies deps, FakeInjector injector, FakeScreen screen, FakeScaleBackend scale, FakeCatalog catalog, MemoryStateStore appsStore, PowerToysSettingsHolder powerToysSettings, FakeUrlOpener urls, FakePowerBackend powerBackend, FakeProcessCatalog processes, FakeTheme theme, FakeGameLibrary gameLibrary, LocalPairing localPairing, CouchBackdrop backdrop, FakePerformance performance)
     {
         _app = app;
         Scale = scale;
@@ -45,6 +47,10 @@ internal sealed class TestServer : IAsyncDisposable
         PowerBackend = powerBackend;
         Processes = processes;
         Theme = theme;
+        GameLibrary = gameLibrary;
+        Local = localPairing;
+        Backdrop = backdrop;
+        Performance = performance;
 
         var address = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.First();
         Port = new Uri(address.Replace("[::]", "127.0.0.1", StringComparison.Ordinal)).Port;
@@ -71,6 +77,14 @@ internal sealed class TestServer : IAsyncDisposable
     public FakeProcessCatalog Processes { get; }
 
     public FakeTheme Theme { get; }
+
+    public FakeGameLibrary GameLibrary { get; }
+
+    internal LocalPairing Local { get; }
+
+    internal CouchBackdrop Backdrop { get; }
+
+    public FakePerformance Performance { get; }
 
     /// <summary>The text of PowerToys' settings file as the server will read it; null means PowerToys is not installed.</summary>
     public PowerToysSettingsHolder PowerToys { get; }
@@ -136,6 +150,10 @@ internal sealed class TestServer : IAsyncDisposable
         var powerToys = new PowerToysShortcutResolver(config.Launcher, () => powerToysSettings.Json);
 
         var theme = new FakeTheme();
+        var gameLibrary = new FakeGameLibrary();
+        var localPairing = new LocalPairing();
+        var backdrop = new CouchBackdrop();
+        var performance = new FakePerformance();
         var urls = new FakeUrlOpener();
         var powerBackend = new FakePowerBackend();
         var processes = new FakeProcessCatalog
@@ -150,10 +168,14 @@ internal sealed class TestServer : IAsyncDisposable
 
         var deps = new ServerDependencies(
             config, pins, limiter, registry, state, connections, injector, screen, screen, dpi, apps, powerToys,
-            urls, new PowerService(powerBackend, time), new ProcessService(processes, ownPid: 999), theme);
+            urls, new PowerService(powerBackend, time), new ProcessService(processes, ownPid: 999), theme,
+            new GamesService(gameLibrary, new MemoryGamesStore(), time, cacheLifetime: TimeSpan.Zero),
+            localPairing,
+            backdrop,
+            new PerformanceService(performance, time, TimeSpan.Zero));
         var app = ServerFactory.Build(deps);
         await app.StartAsync();
-        return new TestServer(app, deps, injector, screen, scale, catalog, appsStore, powerToysSettings, urls, powerBackend, processes, theme);
+        return new TestServer(app, deps, injector, screen, scale, catalog, appsStore, powerToysSettings, urls, powerBackend, processes, theme, gameLibrary, localPairing, backdrop, performance);
     }
 
     /// <summary>Issues a PIN and pairs through the real endpoint. Returns the session JSON.</summary>

@@ -36,6 +36,17 @@ Settings live in `%APPDATA%\PcControl\config.json` (created on first run), logs 
 `%APPDATA%\PcControl\logs`, paired devices (token hashes only) in `devices.json`. Set the
 `PCCONTROL_DATA_DIR` environment variable to use a different folder instead.
 
+### Controller UI
+
+Press the Xbox button on a controller (or use the tray menu) to open a fullscreen, controller-driven
+screen on the PC with your RPCS3 games, apps, media keys, running programs and power options. See
+[docs/couch.md](docs/couch.md).
+
+### Performance
+
+A small task manager on the phone (PC, then Performance) and in the controller UI: CPU, GPU, memory,
+disk and network use, and the same per program. See [docs/performance.md](docs/performance.md).
+
 ### Theme
 
 The phone page follows the PC's Windows theme: the accent colour you picked in Settings and dark or

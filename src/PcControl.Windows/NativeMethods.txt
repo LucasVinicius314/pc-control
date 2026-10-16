@@ -77,3 +77,7 @@ GetWindowThreadProcessId
 AttachThreadInput
 GetCurrentThreadId
 IsWindow
+GlobalMemoryStatusEx
+MEMORYSTATUSEX
+GetProcessIoCounters
+IO_COUNTERS

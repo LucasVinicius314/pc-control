@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ICONS, type IconName } from "./icons";
 
 const TOOLBAR: IconName[] = ["keyboard", "leftClick", "rightClick", "keys", "apps", "search", "view", "dpi", "media", "power", "settings"];
-const PANEL: IconName[] = ["lock", "sleep", "signOut", "restart", "closeX", "window", "force", "link", "skipPrev", "skipNext", "playPause", "back", "forward", "volumeDown", "volumeUp", "mute", "fullscreen", "chevronUp", "chevronDown"];
+const PANEL: IconName[] = ["lock", "sleep", "signOut", "restart", "closeX", "window", "force", "link", "gamepad", "chart", "skipPrev", "skipNext", "playPause", "back", "forward", "volumeDown", "volumeUp", "mute", "fullscreen", "chevronUp", "chevronDown"];
 const ALL = [...TOOLBAR, ...PANEL];
 
 describe("toolbar icons", () => {

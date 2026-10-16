@@ -47,5 +47,7 @@ dotnet test
 
 Done: 1 skeleton/pairing, 2 trackpad/keyboard, 3 apps/search/PowerToys Run, 4 display scale, 5 previews/screenshot, media panel, start with Windows (tray menu; `StartupService` uses the per-user Run key).
 Skipped: 6 (separate game launcher/game mode). Game features belong inside the controller overlay.
-Done too: 7 URL/power/processes (docs/system.md).
-Next: 8 controller overlay (including the game features), 9 polish (installer, firewall rule, HTTPS decision).
+Done too: 7 URL/power/processes (docs/system.md), and the controller UI with RPCS3 games (docs/couch.md; a fullscreen WebView2 window opened by the Xbox button).
+Dropped: 8 as a phone gamepad overlay (the Xbox controller plugs into the PC instead).
+Next, ideas: pause the game while the UI is open, an on-screen keyboard, more game sources.
+Then 9 polish (installer, firewall rule, HTTPS decision).

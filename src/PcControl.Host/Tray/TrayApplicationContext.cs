@@ -27,7 +27,8 @@ internal sealed class TrayApplicationContext : ApplicationContext
         PinService pins,
         DeviceRegistry registry,
         RemoteControlState state,
-        DeviceConnections connections)
+        DeviceConnections connections,
+        Couch.CouchController? couch = null)
     {
         _config = config;
         _pins = pins;
@@ -39,6 +40,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
         var menu = new ContextMenuStrip();
         var open = new ToolStripMenuItem("Open PC Control", null, (_, _) => ShowWindow(showPairing: false));
+        var controllerUi = new ToolStripMenuItem("Open controller UI", null, (_, _) => couch?.Toggle()) { Visible = couch is not null };
         var pair = new ToolStripMenuItem("Pair a phone…", null, (_, _) => ShowWindow(showPairing: true));
         var logs = new ToolStripMenuItem("Open logs folder", null, (_, _) => OpenFolder(AppPaths.LogsDirectory));
         var quit = new ToolStripMenuItem("Quit", null, (_, _) => ExitThread());
@@ -49,7 +51,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         // Windows' own Startup settings can change this, so read it fresh each time the menu opens.
         menu.Opening += (_, _) => _startupItem.Checked = _startup.IsEnabled;
         _startupItem.Click += (_, _) => ToggleStartup();
-        menu.Items.AddRange([open, pair, new ToolStripSeparator(), _pauseItem, _startupItem, new ToolStripSeparator(), logs, new ToolStripSeparator(), quit]);
+        menu.Items.AddRange([open, controllerUi, pair, new ToolStripSeparator(), _pauseItem, _startupItem, new ToolStripSeparator(), logs, new ToolStripSeparator(), quit]);
 
         _icon = new NotifyIcon
         {

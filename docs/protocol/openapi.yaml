@@ -330,6 +330,111 @@ paths:
       responses:
         "200":
           description: "`{ accent, dark }`."
+  /api/games:
+    get:
+      summary: The RPCS3 games
+      description: |
+        `{ available, reason, games: [{ id, title, serial, source }], recent: [id] }`. `available` is false
+        when RPCS3 was not found (`reason` says why). Ids are opaque; paths never leave the PC.
+      responses:
+        "200":
+          description: The list.
+  /api/games/{id}/cover:
+    get:
+      summary: A game's cover picture
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: A PNG.
+        "404":
+          description: Unknown game or no picture (`no_image`).
+  /api/games/{id}/background:
+    get:
+      summary: A game's large background picture
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: A PNG.
+        "404":
+          description: Unknown game or no picture (`no_image`).
+  /api/games/{id}/launch:
+    post:
+      summary: Start a game
+      description: Starts the game in RPCS3. Refused while the kill switch is on.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Started. Returns `{ launched: true, title }`.
+        "404":
+          description: Unknown id (`unknown_game`).
+        "409":
+          description: The kill switch is on (`paused`).
+        "502":
+          description: The game did not start (`launch_failed`).
+  /api/pair/local:
+    post:
+      summary: Pair the PC's own controller-UI window
+      description: |
+        Only accepted from this PC and only with the one-time key the app gave its own window. Not for
+        clients; it exists so the controller UI needs no PIN.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [key]
+              properties:
+                key:
+                  type: string
+      responses:
+        "200":
+          description: Paired; the session cookie is set.
+        "401":
+          description: Wrong place or wrong key.
+  /api/performance:
+    get:
+      summary: Task-manager numbers
+      description: |
+        The whole PC and the busiest programs, measured over the time since the previous reading (shared
+        between clients, at most once a second). Programs are grouped by name; no process numbers are sent.
+      parameters:
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [cpu, memory, gpu, disk]
+          description: Which column orders the programs. Default cpu.
+        - name: count
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+          description: How many programs. Default 25; ask for 1000 to get every program.
+      responses:
+        "200":
+          description: |
+            `{ cpu, cores, memory: { used, total }, gpu (or null), disk: { percent (or null), readPerSecond,
+            writePerSecond }, network: { downPerSecond, upPerSecond }, processes: [{ name, count, cpu, memory,
+            gpu (or null), io }] }`. Percentages are 0 to 100, sizes are bytes.
+        "400":
+          description: Unknown sort (`invalid_sort`).
   /api/dpi:
     get:
       summary: The display scale the toggle controls

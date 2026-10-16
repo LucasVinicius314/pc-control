@@ -868,36 +868,274 @@ button.dpi-row.busy {
   opacity: 0.6;
 }
 
-/* ---- media panel ---- */
+/* ---- media remote ---- */
 
-.media-panel {
+.mremote {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 14px;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 14px 16px;
 }
 
-.media-panel[hidden] {
+.mremote[hidden] {
   display: none;
 }
 
-.media-grid {
+.mremote-main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* Round buttons: no outlines until pressed, a soft fill, and one bright main button. */
+.mround {
+  position: relative;
   display: grid;
+  place-items: center;
+  flex: none;
+  min-height: 0;
+  padding: 0;
+  color: var(--text);
+  background: color-mix(in srgb, var(--text) 9%, transparent);
+  border: 0;
+  border-radius: 50%;
+  transition: transform 0.08s ease, background 0.12s ease;
+}
+
+.mround:active {
+  transform: scale(0.92);
+  background: color-mix(in srgb, var(--text) 18%, transparent);
+}
+
+.mround.lg {
+  width: 76px;
+  height: 76px;
+}
+
+.mround.md {
+  width: 50px;
+  height: 50px;
+}
+
+.mround.sm {
+  width: 44px;
+  height: 44px;
+}
+
+.mround .icon {
+  width: 46%;
+  height: 46%;
+  margin: 0;
+}
+
+.mround.lg .icon {
+  width: 42%;
+  height: 42%;
+}
+
+.mround.primary {
+  color: var(--on-accent);
+  background: var(--accent);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.mround.primary:active {
+  background: color-mix(in srgb, var(--accent) 80%, black);
+}
+
+/* The seconds on a jump button sit under its arrows. */
+.mround-seconds {
+  position: absolute;
+  bottom: 16%;
+  font-size: 0.6rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.mround:has(.mround-seconds) .icon {
+  transform: translateY(-14%);
+}
+
+.mremote-extras {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 14px 22px;
+  width: 100%;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.mremote-cluster {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   gap: 6px;
 }
 
-/* Play / pause is the one button used most; it gets the middle and the accent colour. */
-.media-grid.transport {
-  grid-template-columns: 1fr 1.5fr 1fr !important;
+.mremote-buttons {
+  display: flex;
+  gap: 6px;
 }
 
-button.tile.primary {
-  min-height: 76px;
-  color: var(--on-accent);
-  background: var(--accent);
-  border-color: var(--accent);
+.mremote-caption {
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
-button.tile.primary:active {
-  background: color-mix(in srgb, var(--accent) 80%, black);
+/* ---- performance (the PC tab) ---- */
+
+.perf {
+  gap: 10px;
+}
+
+.perf-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+/* The last card, when there is an odd number, takes the whole row. */
+.perf-card:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
+.perf-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  color: var(--accent);
+}
+
+.perf-card[hidden] {
+  display: none;
+}
+
+.perf-card-title {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.perf-card-value {
+  font-size: 1.35rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.perf-card-detail {
+  min-height: 1.1em;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.perf-graph-box {
+  position: relative;
+  margin-top: 6px;
+}
+
+.perf-graph {
+  display: block;
+  width: 100%;
+  height: 34px;
+  border-radius: 6px;
+}
+
+.perf-track {
+  fill: color-mix(in srgb, var(--text) 5%, transparent);
+}
+
+.perf-mid {
+  stroke: color-mix(in srgb, var(--text) 14%, transparent);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+}
+
+.perf-area {
+  fill: currentColor;
+  fill-opacity: 0.2;
+}
+
+.perf-scale {
+  position: absolute;
+  right: 5px;
+  font-size: 0.58rem;
+  line-height: 1;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.perf-scale-top {
+  top: 3px;
+}
+
+.perf-scale-bottom {
+  bottom: 3px;
+}
+
+.perf-table {
+  display: flex;
+  flex-direction: column;
+}
+
+.perf-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) 0.7fr 0.9fr 0.7fr 1fr;
+  gap: 6px;
+  align-items: center;
+  padding: 7px 2px;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.perf-row span:not(.perf-name) {
+  text-align: right;
+  color: var(--muted);
+}
+
+.perf-row span.sorted {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.perf-head span:first-child {
+  text-align: left;
+}
+
+.perf-head {
+  position: sticky;
+  top: 0;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: var(--bg);
+}
+
+.perf-name.sorted {
+  font-weight: 600;
+}
+
+.perf-name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }

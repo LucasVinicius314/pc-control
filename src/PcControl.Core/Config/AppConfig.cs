@@ -21,6 +21,43 @@ public sealed record AppConfig
     public LauncherConfig Launcher { get; init; } = new();
 
     public CaptureConfig Capture { get; init; } = new();
+
+    public GamesConfig Games { get; init; } = new();
+
+    public CouchConfig Couch { get; init; } = new();
+}
+
+public sealed record CouchConfig
+{
+    /// <summary>Whether the controller UI exists at all (tray menu item and Xbox button).</summary>
+    public bool Enabled { get; init; } = true;
+
+    /// <summary>Open the controller UI when PC Control starts.</summary>
+    public bool OpenAtStart { get; init; }
+
+    /// <summary>The Xbox (Guide) button on a controller opens and closes it.</summary>
+    public bool GuideButton { get; init; } = true;
+
+    /// <summary>
+    /// How much of what was on screen before the UI opened (a game, say) shows through behind it, blurred:
+    /// 0 is solid, 0.7 is quite see-through. The picture is taken when the UI opens and is not live.
+    /// </summary>
+    public double SeeThrough { get; init; } = 0.5;
+
+    /// <summary>Small sounds when the focus moves or something is chosen.</summary>
+    public bool Sounds { get; init; } = true;
+}
+
+public sealed record GamesConfig
+{
+    /// <summary>
+    /// Where RPCS3 is: "auto" (the default) finds a running copy or a usual folder, or give the path of
+    /// rpcs3.exe or of the folder it is in.
+    /// </summary>
+    public string Rpcs3Path { get; init; } = "auto";
+
+    /// <summary>Start games fullscreen.</summary>
+    public bool Rpcs3Fullscreen { get; init; } = true;
 }
 
 public sealed record CaptureConfig

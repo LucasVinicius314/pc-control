@@ -42,4 +42,11 @@ contract bumps `protocolVersion` (see `ProtocolInfo.Version` in `PcControl.Core`
 
 - `GET /api/theme`: the PC's accent colour and dark / light mode, so a client can match the PC.
 
+- `GET /api/games`, `GET /api/games/{id}/cover`, `GET /api/games/{id}/background` and
+  `POST /api/games/{id}/launch`: the RPCS3 game list and starting a game (capability `gameLauncher`).
+  `POST /api/pair/local` is only for the PC's own controller-UI window. See [../couch.md](../couch.md).
+
+- `GET /api/performance`: CPU, GPU, memory, disk and network use, and the busiest programs
+  (capability `performance`). See [../performance.md](../performance.md).
+
 Every other endpoint in the plan is added with its milestone and appears here first.

@@ -134,7 +134,7 @@ public class PairingApiTests
         Assert.True(caps["trackpad"]);
         Assert.True(caps["keyboard"]);
         Assert.True(caps["appLauncher"]);
-        Assert.False(caps["gameLauncher"]); // not built yet
+        Assert.True(caps["gameLauncher"]); // the test server has a game library
     }
 
     [Fact]

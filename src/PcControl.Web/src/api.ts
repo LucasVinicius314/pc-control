@@ -59,6 +59,42 @@ export interface PendingPower {
   secondsLeft: number;
 }
 
+export interface GameItem {
+  id: string;
+  title: string;
+  serial: string;
+  source: string;
+}
+
+export interface GamesResponse {
+  available: boolean;
+  reason: string | null;
+  games: GameItem[];
+  /** Ids of recently played games, newest first. */
+  recent: string[];
+}
+
+export interface PerformanceProcess {
+  name: string;
+  /** How many processes of that name are running. */
+  count: number;
+  cpu: number;
+  memory: number;
+  gpu: number | null;
+  /** Bytes per second read and written (files and network together). */
+  io: number;
+}
+
+export interface PerformanceData {
+  cpu: number;
+  cores: number;
+  memory: { used: number; total: number };
+  gpu: number | null;
+  disk: { percent: number | null; readPerSecond: number; writePerSecond: number };
+  network: { downPerSecond: number; upPerSecond: number };
+  processes: PerformanceProcess[];
+}
+
 export interface DpiChange {
   previous: number;
   percent: number;
@@ -124,6 +160,11 @@ export const api = {
   focusProcess: (id: string) => request<{ focused: boolean; title: string }>("POST", `/api/processes/${id}/focus`),
   closeProcess: (id: string, force: boolean) =>
     request<{ closed: boolean; title: string }>("POST", `/api/processes/${id}/close`, { force }),
+  performance: (sort: string, count: number) => request<PerformanceData>("GET", `/api/performance?sort=${sort}&count=${count}`),
+  games: () => request<GamesResponse>("GET", "/api/games"),
+  launchGame: (id: string) => request<{ launched: boolean; title: string }>("POST", `/api/games/${id}/launch`),
+  /** Pairs the PC's own controller window. Only the PC itself can do this, with the key the app gave it. */
+  pairLocal: (key: string) => request<Session>("POST", "/api/pair/local", { key }),
   pair: (pin: string, deviceName: string) =>
     request<Session>("POST", "/api/pair", { pin, deviceName }),
   unpair: () => request<void>("DELETE", "/api/session"),

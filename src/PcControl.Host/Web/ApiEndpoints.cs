@@ -7,6 +7,8 @@ using PcControl.Core.Theme;
 
 namespace PcControl.Host.Web;
 
+internal sealed record LocalPairRequest(string? Key);
+
 internal sealed record PairRequest(string? Pin, string? DeviceName, bool IssueBearerToken = false);
 
 internal sealed record SessionResponse(
@@ -28,6 +30,7 @@ internal static class ApiEndpoints
             new { app = ProtocolInfo.AppName, protocolVersion = ProtocolInfo.Version, paused = state.Paused });
 
         api.MapPost("/pair", Pair);
+        api.MapPost("/pair/local", PairLocal);
 
         var secured = api.MapGroup(string.Empty).RequireAuthorization();
 
@@ -36,7 +39,7 @@ internal static class ApiEndpoints
 
         secured.MapDelete("/session", Unpair);
 
-        secured.MapGet("/capabilities", (AppConfig config, DpiToggleService dpi) =>
+        secured.MapGet("/capabilities", (AppConfig config, DpiToggleService dpi, PcControl.Core.Games.GamesService games) =>
         {
             // The DPI toggle only counts as available if its startup self-test passed.
             var implemented = new HashSet<string>(Capabilities.Implemented, StringComparer.Ordinal);
@@ -45,16 +48,35 @@ internal static class ApiEndpoints
                 implemented.Add("dpiToggle");
             }
 
+            // Games only count when the emulator was found.
+            if (games.Available)
+            {
+                implemented.Add("gameLauncher");
+            }
+
             return Capabilities.Build(config, implemented);
         });
 
         AppEndpoints.Map(secured);
+        GameEndpoints.Map(secured);
         SystemEndpoints.Map(secured);
 
         secured.MapGet("/theme", (IThemeProvider theme) =>
         {
             var current = theme.Read();
             return Results.Json(new { accent = current.Accent, dark = current.Dark });
+        });
+
+        secured.MapGet("/couch/backdrop", (CouchBackdrop backdrop, HttpContext context) =>
+        {
+            var jpeg = backdrop.Jpeg;
+            if (jpeg is null)
+            {
+                return Results.Json(new { error = "no_image" }, statusCode: StatusCodes.Status404NotFound);
+            }
+
+            context.Response.Headers.CacheControl = "no-store";
+            return Results.File(jpeg, "image/jpeg");
         });
 
         secured.MapGet("/dpi", GetDpi);
@@ -249,6 +271,40 @@ internal static class ApiEndpoints
             result.Device.Name,
             state.Paused,
             request.IssueBearerToken ? result.Token : null));
+    }
+
+    private static IResult PairLocal(
+        LocalPairRequest request,
+        HttpContext context,
+        LocalPairing local,
+        DeviceRegistry registry,
+        RemoteControlState state,
+        ILogger<LocalPairing> logger)
+    {
+        // Wrong place or wrong key looks the same, so nothing is learned from the answer.
+        if (!LocalPairing.IsThisPc(context.Connection.RemoteIpAddress) || !local.Matches(request.Key))
+        {
+            logger.LogWarning("Refused a local pairing attempt from {Client}", context.Connection.RemoteIpAddress);
+            return Results.Json(new { error = "invalid_pin" }, statusCode: StatusCodes.Status401Unauthorized);
+        }
+
+        // One controller-UI device is enough; drop the ones from earlier runs.
+        foreach (var old in registry.List().Where(d => d.Name == LocalPairing.DeviceName).ToList())
+        {
+            registry.Revoke(old.Id);
+        }
+
+        var result = registry.Pair(LocalPairing.DeviceName);
+        context.Response.Cookies.Append(DeviceAuth.CookieName, result.Token, new CookieOptions
+        {
+            HttpOnly = true,
+            SameSite = SameSiteMode.Strict,
+            Secure = context.Request.IsHttps,
+            Path = "/",
+            MaxAge = TimeSpan.FromDays(365),
+            IsEssential = true,
+        });
+        return Results.Json(new SessionResponse(result.Device.Id, result.Device.Name, state.Paused));
     }
 
     private static IResult Unpair(HttpContext context, DeviceRegistry registry, ILogger<PairRequest> logger)

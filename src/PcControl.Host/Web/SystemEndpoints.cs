@@ -1,5 +1,6 @@
 using PcControl.Core.Actions;
 using PcControl.Core.Config;
+using PcControl.Core.Performance;
 
 namespace PcControl.Host.Web;
 
@@ -20,6 +21,7 @@ internal static class SystemEndpoints
         secured.MapPost("/power", RunPower);
         secured.MapDelete("/power/pending", CancelPower);
 
+        secured.MapGet("/performance", GetPerformance);
         secured.MapGet("/processes", GetProcesses);
         secured.MapPost("/processes/{id}/close", CloseProcess);
         secured.MapPost("/processes/{id}/focus", FocusProcess);
@@ -125,6 +127,35 @@ internal static class SystemEndpoints
 
         logger.LogWarning("{DeviceName} cancelled the pending restart or shutdown", context.User.Identity!.Name);
         return Results.NoContent();
+    }
+
+    /// <summary>Task-manager numbers: the whole PC, and the busiest programs by the chosen column.</summary>
+    private static IResult GetPerformance(PerformanceService performance, string? sort, int? count)
+    {
+        if (!PerformanceService.TryParseSort(sort, out var order))
+        {
+            return Results.Json(new { error = "invalid_sort" }, statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        var snapshot = performance.Get(order, count ?? 25);
+        return Results.Json(new
+        {
+            cpu = snapshot.CpuPercent,
+            cores = snapshot.Cores,
+            memory = new { used = snapshot.MemoryUsedBytes, total = snapshot.MemoryTotalBytes },
+            gpu = snapshot.GpuPercent,
+            disk = new { percent = snapshot.DiskPercent, readPerSecond = snapshot.DiskReadBytesPerSecond, writePerSecond = snapshot.DiskWriteBytesPerSecond },
+            network = new { downPerSecond = snapshot.NetworkDownBytesPerSecond, upPerSecond = snapshot.NetworkUpBytesPerSecond },
+            processes = snapshot.Processes.Select(p => new
+            {
+                name = p.Name,
+                count = p.Count,
+                cpu = p.CpuPercent,
+                memory = p.MemoryBytes,
+                gpu = p.GpuPercent,
+                io = p.IoBytesPerSecond,
+            }),
+        });
     }
 
     private static IResult GetProcesses(AppConfig config, ProcessService processes)

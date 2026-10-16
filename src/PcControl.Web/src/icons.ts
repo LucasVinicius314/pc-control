@@ -2,7 +2,7 @@
 // text colour so they follow the button's state (normal, active, disabled). No icon library, no
 // images to load: each one is a few shapes.
 
-export type IconName = "keyboard" | "leftClick" | "rightClick" | "keys" | "apps" | "search" | "view" | "dpi" | "media" | "power" | "settings" | "lock" | "sleep" | "signOut" | "restart" | "closeX" | "window" | "force" | "link" | "skipPrev" | "skipNext" | "playPause" | "back" | "forward" | "volumeDown" | "volumeUp" | "mute" | "fullscreen" | "chevronUp" | "chevronDown";
+export type IconName = "keyboard" | "leftClick" | "rightClick" | "keys" | "apps" | "search" | "view" | "dpi" | "media" | "power" | "settings" | "lock" | "sleep" | "signOut" | "restart" | "closeX" | "window" | "force" | "link" | "gamepad" | "chart" | "skipPrev" | "skipNext" | "playPause" | "back" | "forward" | "volumeDown" | "volumeUp" | "mute" | "fullscreen" | "chevronUp" | "chevronDown";
 
 interface Shape {
   tag: "path" | "rect" | "circle";
@@ -99,6 +99,16 @@ export const ICONS: Record<IconName, Shape[]> = {
     path("M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"),
     path("M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"),
   ],
+
+  // A game controller: the games screen.
+  gamepad: [
+    path("M7 7h10a4.5 4.5 0 0 1 4.4 3.6l.9 4.9a2.6 2.6 0 0 1-4.4 2.3L16 16H8l-1.9 1.8a2.6 2.6 0 0 1-4.4-2.3l.9-4.9A4.5 4.5 0 0 1 7 7z"),
+    path("M8 10v3M6.5 11.5h3"),
+    path("M15.5 10.6h.01M17.5 12.4h.01"),
+  ],
+
+  // Bars on an axis: performance.
+  chart: [path("M4 4v16h16"), path("M8.5 16v-4M12.5 16V8M16.5 16v-6")],
 
   // Media controls.
   skipPrev: [path("M18 6.5 10 12l8 5.5z"), path("M6 6v12")],

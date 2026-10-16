@@ -3,8 +3,10 @@ using PcControl.Core.Apps;
 using PcControl.Core.Capture;
 using PcControl.Core.Config;
 using PcControl.Core.Display;
+using PcControl.Core.Games;
 using PcControl.Core.Input;
 using PcControl.Core.Pairing;
+using PcControl.Core.Performance;
 using PcControl.Core.Theme;
 
 namespace PcControl.Host.Web;
@@ -26,4 +28,8 @@ internal sealed record ServerDependencies(
     IUrlOpener UrlOpener,
     PowerService Power,
     ProcessService Processes,
-    IThemeProvider Theme);
+    IThemeProvider Theme,
+    GamesService Games,
+    LocalPairing Local,
+    CouchBackdrop Backdrop,
+    PerformanceService Performance);

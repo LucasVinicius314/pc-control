@@ -9,12 +9,12 @@ public static class Capabilities
     [
         "trackpad", "keyboard", "appLauncher", "search", "powerToysRun", "dpiToggle",
         "magnifier", "screenshot", "gameLauncher", "gameMode", "media", "sendUrl",
-        "power", "processKiller", "controllerOverlay",
+        "power", "processKiller", "controllerOverlay", "performance",
     ];
 
     /// <summary>Features whose code exists in this build. Grows milestone by milestone.</summary>
     public static readonly IReadOnlySet<string> Implemented =
-        new HashSet<string>(StringComparer.Ordinal) { "trackpad", "keyboard", "magnifier", "screenshot", "appLauncher", "search", "powerToysRun", "media", "sendUrl", "power", "processKiller" };
+        new HashSet<string>(StringComparer.Ordinal) { "trackpad", "keyboard", "magnifier", "screenshot", "appLauncher", "search", "powerToysRun", "media", "sendUrl", "power", "processKiller", "performance" };
 
     public static IReadOnlyDictionary<string, bool> Build(AppConfig config) =>
         Build(config, Implemented);

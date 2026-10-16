@@ -7,6 +7,8 @@ export default defineConfig({
     outDir: "dist",
     emptyOutDir: true,
     target: "es2022",
+    // Two pages: the phone remote, and the controller UI shown on the PC itself.
+    rollupOptions: { input: { main: "index.html", couch: "couch.html" } },
     assetsInlineLimit: 0,
   },
 });

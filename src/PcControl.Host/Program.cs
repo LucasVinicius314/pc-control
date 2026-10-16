@@ -3,10 +3,13 @@ using PcControl.Core.Apps;
 using PcControl.Core.Capture;
 using PcControl.Core.Config;
 using PcControl.Core.Display;
+using PcControl.Core.Games;
 using PcControl.Core.Input;
+using PcControl.Core.Performance;
 using PcControl.Windows;
 using Microsoft.Extensions.Logging;
 using PcControl.Core.Pairing;
+using PcControl.Host.Couch;
 using PcControl.Host.Tray;
 using PcControl.Host.Web;
 using Serilog;
@@ -138,12 +141,32 @@ internal static class Program
             shortcut.Shortcut,
             shortcut.FromPowerToys ? "read from PowerToys' settings" : "from config or the default");
 
+        using var performanceSampler = new PerformanceSampler();
+        var performanceService = new PerformanceService(performanceSampler, time);
+        var localPairing = new LocalPairing();
+        var couchBackdrop = new CouchBackdrop();
+        var jpegEncoder = new GdiPlusJpegEncoder();
+        using var couch = new CouchController(config, localPairing, gdiScreen, jpegEncoder, couchBackdrop);
+        using var controllers = new XInputWatcher();
+        if (config.Couch.Enabled && config.Couch.GuideButton)
+        {
+            controllers.GuidePressed += couch.Toggle;
+            Log.Information(
+                controllers.Start()
+                    ? "Controller UI: the Xbox button opens and closes it"
+                    : "Controller UI: the controller library is not available, so the Xbox button is not watched");
+        }
+
         var app = ServerFactory.Build(new ServerDependencies(
-            config, pins, limiter, registry, state, connections, injector, screen, new GdiPlusJpegEncoder(), dpi, apps, powerToys,
+            config, pins, limiter, registry, state, connections, injector, screen, jpegEncoder, dpi, apps, powerToys,
             new ShellUrlOpener(),
             new PowerService(new WindowsPowerBackend(), time),
             new ProcessService(new WindowsProcessCatalog(), Environment.ProcessId),
-            new WindowsThemeProvider()));
+            new WindowsThemeProvider(),
+            new GamesService(new Rpcs3Library(config.Games.Rpcs3Path, config.Games.Rpcs3Fullscreen), new JsonGamesStateStore(AppPaths.GamesFile), time),
+            localPairing,
+            couchBackdrop,
+            performanceService));
 
         try
         {
@@ -162,7 +185,16 @@ internal static class Program
 
         Log.Information("Listening on port {Port}", config.Port);
 
-        using (var tray = new TrayApplicationContext(config, pins, registry, state, connections))
+        // The first reading sets up Windows' performance counters, which takes a few seconds. Do it now,
+        // out of the way, so the first time someone opens the Performance screen it is already warm.
+        _ = Task.Run(() => performanceService.Get(PcControl.Core.Performance.ProcessSort.Cpu, 1));
+
+        if (config.Couch.Enabled && config.Couch.OpenAtStart)
+        {
+            couch.Show();
+        }
+
+        using (var tray = new TrayApplicationContext(config, pins, registry, state, connections, config.Couch.Enabled ? couch : null))
         {
             Application.Run(tray);
         }

@@ -17,6 +17,8 @@ internal static class AppPaths
     /// <summary>Favorites and recently launched apps.</summary>
     public static string AppsFile { get; } = Path.Combine(Root, "apps.json");
 
+    public static string GamesFile { get; } = Path.Combine(Root, "games.json");
+
     /// <summary>App icons already converted to PNG.</summary>
     public static string IconsDirectory { get; } = Path.Combine(Root, "icons");
 

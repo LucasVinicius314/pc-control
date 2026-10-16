@@ -152,34 +152,11 @@ public sealed class WindowsProcessCatalog : IProcessCatalog
                     PInvoke.ShowWindow(window, SHOW_WINDOW_CMD.SW_RESTORE);
                 }
 
-                return BringToFront(window) ? CloseOutcome.Ok : CloseOutcome.Failed;
+                return ForegroundWindow.BringToFront(process.MainWindowHandle) ? CloseOutcome.Ok : CloseOutcome.Failed;
             }
             catch (Exception ex) when (ex is Win32Exception or InvalidOperationException or NotSupportedException)
             {
                 return process.HasExited ? CloseOutcome.Gone : CloseOutcome.Failed;
-            }
-        }
-    }
-
-    /// <summary>
-    /// Windows only lets the program that owns the foreground window change it. Joining the input queue
-    /// of the current foreground window for a moment is the usual way to be allowed to.
-    /// </summary>
-    private static bool BringToFront(HWND window)
-    {
-        var foreground = PInvoke.GetForegroundWindow();
-        var foregroundThread = foreground.IsNull ? 0u : PInvoke.GetWindowThreadProcessId(foreground, out _);
-        var thisThread = PInvoke.GetCurrentThreadId();
-        var attached = foregroundThread != 0 && foregroundThread != thisThread && PInvoke.AttachThreadInput(thisThread, foregroundThread, true);
-        try
-        {
-            return PInvoke.SetForegroundWindow(window);
-        }
-        finally
-        {
-            if (attached)
-            {
-                PInvoke.AttachThreadInput(thisThread, foregroundThread, false);
             }
         }
     }
