@@ -1,14 +1,16 @@
 # PC Control
 
-A Windows 11 tray app (C#, .NET 10) that turns a phone into a TV-style remote. The PC serves a
-TypeScript web page (PWA) over the home Wi-Fi on port 48123. Branch `rewrite/pc-control`.
+A Windows 11 tray app (C#, .NET 10) that turns a phone into a TV-style remote, and shows a controller-driven
+fullscreen UI on the PC itself. The PC serves two TypeScript web pages from one server on port 48123: the phone
+remote (`index.html`) and the controller UI (`couch.html`, shown in a WebView2 window). Work is on
+`rewrite/pc-control` and merged to `master`. Leftover work is in `TODO.md`.
 
 ## Layout
 
 * `src/PcControl.Core`: logic with no Win32 code (pairing, protocol, input, apps, capture planning). Unit-testable anywhere.
 * `src/PcControl.Windows`: Win32 behind Core interfaces (SendInput, GDI and DXGI capture, shell apps, display scale). CsWin32 generates the P/Invoke code from `NativeMethods.txt` / `NativeMethods.json`.
-* `src/PcControl.Host`: tray app (WinForms), Kestrel server, auth middleware, WebSocket `/ws`.
-* `src/PcControl.Web`: phone page (Vite + TypeScript, no framework). Built by the Host csproj and embedded in the exe.
+* `src/PcControl.Host`: tray app (WinForms), Kestrel server, auth middleware, WebSocket `/ws`, and `Couch/` (the controller UI's WebView2 window and the Xbox-button watcher wiring).
+* `src/PcControl.Web`: both pages (Vite + TypeScript, no framework; `src/couch/` is the controller UI). Built by the Host csproj and embedded in the exe.
 * `tests/PcControl.Tests`: xUnit (unit plus integration through `TestServer`). `docs/protocol`: the versioned protocol contract.
 
 ## Rules
@@ -42,12 +44,13 @@ dotnet test
 * `ReceiveAsync` cancellation aborts a WebSocket; revoking a device sends a 4401 close frame instead.
 * WinForms windows must be created on the UI thread (the pairing window uses a hidden control and `BeginInvoke`).
 * Shell COM (icons, app list) needs STA threads; icon rendering is gated by a semaphore.
+* Controller UI: a WebView2 window cannot be made see-through (`Form.Opacity` and DWM acrylic both make its content vanish). The "transparency" is a screenshot taken just before it opens (GDI, not DXGI: the first DXGI frame is blank), blurred behind the page. Browsers cannot see the Xbox button; `XInputWatcher` reads it through XInput's undocumented ordinal 100.
+* Controller UI layout: `scrollIntoView` also scrolls `overflow:hidden` ancestors, which made the whole page jump sideways. Use `overflow: clip` on the outer containers, and `scroll-padding` so the focused item is never under the tabs or the hints bar. Steam's controller settings can also turn buttons into key presses; the page ignores the keyboard once it has seen a controller.
+* Performance: protected programs refuse to be opened, and every refusal is an exception (thousands in a debugger). The sampler asks once per program and remembers who refused.
+* The shell tool often fails on long heredocs; write big edits to a script file with the Write tool and run that.
 
 ## Roadmap
 
-Done: 1 skeleton/pairing, 2 trackpad/keyboard, 3 apps/search/PowerToys Run, 4 display scale, 5 previews/screenshot, media panel, start with Windows (tray menu; `StartupService` uses the per-user Run key).
-Skipped: 6 (separate game launcher/game mode). Game features belong inside the controller overlay.
-Done too: 7 URL/power/processes (docs/system.md), and the controller UI with RPCS3 games (docs/couch.md; a fullscreen WebView2 window opened by the Xbox button).
-Dropped: 8 as a phone gamepad overlay (the Xbox controller plugs into the PC instead).
-Next, ideas: pause the game while the UI is open, an on-screen keyboard, more game sources.
-Then 9 polish (installer, firewall rule, HTTPS decision).
+Everything planned is done except the polish items (installer, firewall rule, HTTPS decision) and a few ideas.
+They are listed in `TODO.md`. Milestone 6 (a separate game launcher) and 8 (a phone gamepad overlay) were
+dropped: games live in the controller UI, and the Xbox controller plugs into the PC.

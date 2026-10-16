@@ -1,14 +1,20 @@
 # PC Control
 
-A Windows 11 tray app that turns your phone into a TV-style remote for the PC: trackpad, keyboard,
-app and game launcher, cursor magnifier and a DPI toggle. The phone opens a web page served by the PC
-over the home Wi-Fi; there is nothing to install on the phone.
+A Windows 11 tray app that turns your phone into a TV-style remote for the PC, and gives the PC a
+controller-driven fullscreen screen of its own. The phone opens a web page served by the PC over the home
+Wi-Fi; there is nothing to install on the phone.
 
-Status: **milestones 1 to 5 and 7 of 9, plus media controls** (pairing, trackpad and keyboard, app launcher
-and PowerToys Run, display scale toggle, screen previews and screenshot, a media panel with
-play/pause, tracks, seek, fullscreen and volume). Also done (milestone 7): open a link on the PC, lock / sleep / restart / shut down / sign out with a confirmation and a cancellable countdown, and closing programs, see [docs/system.md](docs/system.md). Still to come: the controller
-overlay (which will also hold the game features) and the installer. Right-click the tray icon and tick **Start with Windows** to start it at sign-in (it uses the per-user Run key, so Windows' own Startup settings can switch it off too). See [docs/launcher.md](docs/launcher.md) and
-[docs/display-scale.md](docs/display-scale.md) for how those work and what to do if they stop.
+**On the phone:** trackpad and keyboard, app launcher and PowerToys Run, running programs (switch to or
+close), open a link, a media remote, screen previews and screenshot, display scale, power actions with a
+confirmation and a cancellable countdown, and a small task manager. The page follows your Windows theme.
+
+**On the PC:** press the Xbox button on a controller for a Big-Picture-style screen with your RPCS3 games,
+apps, media remote, running programs, performance, and power. Right-click the tray icon for
+**Start with Windows** and **Open controller UI**.
+
+What is left is in [TODO.md](TODO.md). How the parts work:
+[launcher](docs/launcher.md), [display scale](docs/display-scale.md), [links, power and programs](docs/system.md),
+[controller UI](docs/couch.md), [performance](docs/performance.md), [protocol](docs/protocol/README.md).
 
 ## Layout
 
