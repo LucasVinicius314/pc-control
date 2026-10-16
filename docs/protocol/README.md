@@ -40,4 +40,6 @@ contract bumps `protocolVersion` (see `ProtocolInfo.Version` in `PcControl.Core`
   capabilities `sendUrl`, `power` and `processKiller` are on unless switched off in the config's
   `features`. See [../system.md](../system.md).
 
+- `GET /api/theme`: the PC's accent colour and dark / light mode, so a client can match the PC.
+
 Every other endpoint in the plan is added with its milestone and appears here first.

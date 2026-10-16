@@ -3,6 +3,7 @@ using PcControl.Core.Config;
 using PcControl.Core.Display;
 using PcControl.Core.Pairing;
 using PcControl.Core.Protocol;
+using PcControl.Core.Theme;
 
 namespace PcControl.Host.Web;
 
@@ -49,6 +50,12 @@ internal static class ApiEndpoints
 
         AppEndpoints.Map(secured);
         SystemEndpoints.Map(secured);
+
+        secured.MapGet("/theme", (IThemeProvider theme) =>
+        {
+            var current = theme.Read();
+            return Results.Json(new { accent = current.Accent, dark = current.Dark });
+        });
 
         secured.MapGet("/dpi", GetDpi);
         secured.MapPost("/dpi/toggle", ToggleDpi);

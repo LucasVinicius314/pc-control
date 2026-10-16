@@ -108,6 +108,7 @@ export const api = {
   session: () => request<Session>("GET", "/api/session"),
   capabilities: () => request<Capabilities>("GET", "/api/capabilities"),
   monitors: () => request<Monitor[]>("GET", "/api/monitors"),
+  theme: () => request<{ accent: string; dark: boolean }>("GET", "/api/theme"),
   dpi: () => request<DpiStatus>("GET", "/api/dpi"),
   toggleDpi: () => request<DpiChange>("POST", "/api/dpi/toggle"),
   apps: () => request<AppsResponse>("GET", "/api/apps"),

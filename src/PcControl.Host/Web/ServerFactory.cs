@@ -17,7 +17,7 @@ internal static class ServerFactory
     {
         ArgumentNullException.ThrowIfNull(services);
 
-        var (config, pins, limiter, registry, state, connections, injector, capturer, encoder, dpi, apps, powerToys, urlOpener, power, processes) = services;
+        var (config, pins, limiter, registry, state, connections, injector, capturer, encoder, dpi, apps, powerToys, urlOpener, power, processes, theme) = services;
 
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions
         {
@@ -49,6 +49,7 @@ internal static class ServerFactory
         builder.Services.AddSingleton(urlOpener);
         builder.Services.AddSingleton(power);
         builder.Services.AddSingleton(processes);
+        builder.Services.AddSingleton(theme);
         builder.Services.AddSingleton(new PointerCurve(config.Input.PointerGain));
 
         builder.Services.AddAuthentication(DeviceAuth.Scheme)

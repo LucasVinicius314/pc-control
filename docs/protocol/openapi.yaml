@@ -320,6 +320,16 @@ paths:
           description: The kill switch is on (`paused`).
         "502":
           description: Windows would not do it (`focus_failed`).
+  /api/theme:
+    get:
+      summary: The PC's Windows theme
+      description: |
+        `accent` is the accent colour as `#rrggbb` and `dark` is true when Windows apps use dark mode.
+        Read fresh each time. The phone page uses it for its colours and looks again whenever it comes
+        back to the foreground; a client may ignore it.
+      responses:
+        "200":
+          description: "`{ accent, dark }`."
   /api/dpi:
     get:
       summary: The display scale the toggle controls

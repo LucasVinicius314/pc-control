@@ -1,8 +1,13 @@
 import "./style.css";
 import { api, ApiError, type Capabilities, type Session } from "./api";
 import { showRemote } from "./remote";
+import { applyTheme, DEFAULT_THEME, loadCachedTheme } from "./theme";
 
 const root = document.getElementById("app") as HTMLElement;
+let themeWatching = false;
+
+// Show the last theme straight away, so the page does not flash the default colours first.
+applyTheme(loadCachedTheme() ?? DEFAULT_THEME, false);
 
 function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -95,7 +100,26 @@ function showPairing(initialPin: string | null, notice = ""): void {
   if (initialPin) void submit();
 }
 
+/** Follows the PC's Windows theme. Quiet on failure: the page keeps the colours it has. */
+async function refreshTheme(): Promise<void> {
+  try {
+    const theme = await api.theme();
+    applyTheme({ accent: theme.accent, dark: theme.dark });
+  } catch {
+    // Not paired yet, or the PC cannot be reached.
+  }
+}
+
 async function showConnected(session: Session): Promise<void> {
+  void refreshTheme();
+  // Windows' theme can change while the page is in the background; look again when it comes back.
+  if (!themeWatching) {
+    themeWatching = true;
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") void refreshTheme();
+    });
+  }
+
   let capabilities: Capabilities = {};
   try {
     capabilities = await api.capabilities();

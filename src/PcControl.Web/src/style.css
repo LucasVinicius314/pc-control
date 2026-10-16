@@ -88,7 +88,7 @@ button:focus-visible {
 button {
   font: inherit;
   font-weight: 600;
-  color: #04121f;
+  color: var(--on-accent);
   background: var(--accent);
   border: 0;
   border-radius: 12px;
@@ -219,7 +219,7 @@ button.key.once {
 
 button.key.locked {
   background: var(--accent);
-  color: #04121f;
+  color: var(--on-accent);
   border-color: var(--accent);
 }
 
@@ -893,7 +893,7 @@ button.dpi-row.busy {
 
 button.tile.primary {
   min-height: 76px;
-  color: #04121f;
+  color: var(--on-accent);
   background: var(--accent);
   border-color: var(--accent);
 }

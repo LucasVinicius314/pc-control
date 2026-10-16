@@ -142,7 +142,8 @@ internal static class Program
             config, pins, limiter, registry, state, connections, injector, screen, new GdiPlusJpegEncoder(), dpi, apps, powerToys,
             new ShellUrlOpener(),
             new PowerService(new WindowsPowerBackend(), time),
-            new ProcessService(new WindowsProcessCatalog(), Environment.ProcessId)));
+            new ProcessService(new WindowsProcessCatalog(), Environment.ProcessId),
+            new WindowsThemeProvider()));
 
         try
         {

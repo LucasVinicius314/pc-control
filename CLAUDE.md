@@ -20,6 +20,7 @@ TypeScript web page (PWA) over the home Wi-Fi on port 48123. Branch `rewrite/pc-
 * Protocol changes go in `docs/protocol` (written so an Android app could use it later). Keep README and docs current.
 * Out of scope by decision: virtual controller, audio device switcher. The only display feature is the DPI toggle.
 * The phone page's CSP blocks inline style attributes; set styles through the CSSOM.
+* Colours on the phone page come from CSS variables that `theme.ts` sets from the PC's Windows theme (accent, dark / light). Use `var(--accent)`, `var(--on-accent)` etc., never hard-coded colours, so both modes work.
 
 ## Build and test
 

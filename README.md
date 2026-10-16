@@ -36,6 +36,13 @@ Settings live in `%APPDATA%\PcControl\config.json` (created on first run), logs 
 `%APPDATA%\PcControl\logs`, paired devices (token hashes only) in `devices.json`. Set the
 `PCCONTROL_DATA_DIR` environment variable to use a different folder instead.
 
+### Theme
+
+The phone page follows the PC's Windows theme: the accent colour you picked in Settings and dark or
+light mode. It asks the PC (`GET /api/theme`) when it opens and each time it comes back to the
+foreground, remembers the last answer so there is no flash of other colours, and nudges an accent
+that would be hard to see on the background. If the PC cannot be asked it keeps the default blue.
+
 ### How the screen is captured
 
 The previews read the screen with DXGI Desktop Duplication: Windows says when something changed

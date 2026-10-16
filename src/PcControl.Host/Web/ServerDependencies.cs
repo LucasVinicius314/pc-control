@@ -5,6 +5,7 @@ using PcControl.Core.Config;
 using PcControl.Core.Display;
 using PcControl.Core.Input;
 using PcControl.Core.Pairing;
+using PcControl.Core.Theme;
 
 namespace PcControl.Host.Web;
 
@@ -24,4 +25,5 @@ internal sealed record ServerDependencies(
     PowerToysShortcutResolver PowerToys,
     IUrlOpener UrlOpener,
     PowerService Power,
-    ProcessService Processes);
+    ProcessService Processes,
+    IThemeProvider Theme);
