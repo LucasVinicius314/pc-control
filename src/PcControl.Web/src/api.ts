@@ -48,6 +48,17 @@ export interface AppsResponse {
   launcher: { powerToysRunShortcut: string; powerToysDetected: boolean };
 }
 
+export interface ProcessItem {
+  id: string;
+  name: string;
+  title: string;
+}
+
+export interface PendingPower {
+  action: string;
+  secondsLeft: number;
+}
+
 export interface DpiChange {
   previous: number;
   percent: number;
@@ -103,6 +114,14 @@ export const api = {
   launchApp: (id: string) => request<{ launched: boolean; name: string }>("POST", `/api/apps/${id}/launch`),
   setFavorite: (id: string, favorite: boolean) => request<void>("PUT", `/api/apps/${id}/favorite`, { favorite }),
   powerToysRun: () => request<void>("POST", "/api/powertoys-run"),
+  openUrl: (url: string) => request<{ opened: boolean; url: string }>("POST", "/api/url", { url }),
+  powerStatus: () => request<{ pending: PendingPower | null }>("GET", "/api/power"),
+  power: (action: string, confirm: boolean) =>
+    request<{ action: string; delaySeconds: number }>("POST", "/api/power", { action, confirm }),
+  cancelPower: () => request<void>("DELETE", "/api/power/pending"),
+  processes: () => request<ProcessItem[]>("GET", "/api/processes"),
+  closeProcess: (id: string, force: boolean) =>
+    request<{ closed: boolean; title: string }>("POST", `/api/processes/${id}/close`, { force }),
   pair: (pin: string, deviceName: string) =>
     request<Session>("POST", "/api/pair", { pin, deviceName }),
   unpair: () => request<void>("DELETE", "/api/session"),

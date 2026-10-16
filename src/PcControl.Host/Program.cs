@@ -1,3 +1,4 @@
+using PcControl.Core.Actions;
 using PcControl.Core.Apps;
 using PcControl.Core.Capture;
 using PcControl.Core.Config;
@@ -138,7 +139,10 @@ internal static class Program
             shortcut.FromPowerToys ? "read from PowerToys' settings" : "from config or the default");
 
         var app = ServerFactory.Build(new ServerDependencies(
-            config, pins, limiter, registry, state, connections, injector, screen, new GdiPlusJpegEncoder(), dpi, apps, powerToys));
+            config, pins, limiter, registry, state, connections, injector, screen, new GdiPlusJpegEncoder(), dpi, apps, powerToys,
+            new ShellUrlOpener(),
+            new PowerService(new WindowsPowerBackend(), time),
+            new ProcessService(new WindowsProcessCatalog(), Environment.ProcessId)));
 
         try
         {

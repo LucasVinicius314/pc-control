@@ -601,3 +601,82 @@ button.app-star.on {
   padding: 24px 8px;
   text-align: center;
 }
+
+/* ---- system panel: open a link, power, close programs ---- */
+
+.system-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.system-panel[hidden] {
+  display: none;
+}
+
+.sys-title {
+  margin: 4px 0 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.sys-row {
+  display: flex;
+  gap: 8px;
+}
+
+.sys-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.sys-power {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+button.danger.armed {
+  background: var(--accent);
+  color: #04121f;
+  border-color: var(--accent);
+}
+
+.sys-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.sys-banner[hidden] {
+  display: none;
+}
+
+.sys-process {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 48px;
+}
+
+.sys-process-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.sys-empty {
+  margin: 0;
+  color: var(--muted);
+}

@@ -34,4 +34,10 @@ contract bumps `protocolVersion` (see `ProtocolInfo.Version` in `PcControl.Core`
 - Milestone 4: `GET /api/dpi` and `POST /api/dpi/toggle` (display scale 100% / 200%), and the
   `dpiToggle` capability, which is only on when the startup self-test passed.
 
+- Milestone 7: `POST /api/url` (open a web link on the PC), `GET/POST /api/power` and
+  `DELETE /api/power/pending` (lock, sleep, restart, shut down, sign out), `GET /api/processes` and
+  `POST /api/processes/{id}/close` (close a program), plus the media keys (see websocket.md). The
+  capabilities `sendUrl`, `power` and `processKiller` are on unless switched off in the config's
+  `features`. See [../system.md](../system.md).
+
 Every other endpoint in the plan is added with its milestone and appears here first.

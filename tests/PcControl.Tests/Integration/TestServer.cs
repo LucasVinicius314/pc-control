@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.Extensions.DependencyInjection;
+using PcControl.Core.Actions;
 using PcControl.Core.Apps;
 using PcControl.Core.Config;
 using PcControl.Core.Display;
@@ -24,7 +25,7 @@ internal sealed class TestServer : IAsyncDisposable
     private readonly CookieContainer _cookies = new();
     private readonly HttpClientHandler _handler;
 
-    private TestServer(WebApplication app, ServerDependencies deps, FakeInjector injector, FakeScreen screen, FakeScaleBackend scale, FakeCatalog catalog, MemoryStateStore appsStore, PowerToysSettingsHolder powerToysSettings)
+    private TestServer(WebApplication app, ServerDependencies deps, FakeInjector injector, FakeScreen screen, FakeScaleBackend scale, FakeCatalog catalog, MemoryStateStore appsStore, PowerToysSettingsHolder powerToysSettings, FakeUrlOpener urls, FakePowerBackend powerBackend, FakeProcessCatalog processes)
     {
         _app = app;
         Scale = scale;
@@ -39,6 +40,9 @@ internal sealed class TestServer : IAsyncDisposable
         Catalog = catalog;
         AppsStore = appsStore;
         PowerToys = powerToysSettings;
+        Urls = urls;
+        PowerBackend = powerBackend;
+        Processes = processes;
 
         var address = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.First();
         Port = new Uri(address.Replace("[::]", "127.0.0.1", StringComparison.Ordinal)).Port;
@@ -57,6 +61,12 @@ internal sealed class TestServer : IAsyncDisposable
     public FakeCatalog Catalog { get; }
 
     public MemoryStateStore AppsStore { get; }
+
+    public FakeUrlOpener Urls { get; }
+
+    public FakePowerBackend PowerBackend { get; }
+
+    public FakeProcessCatalog Processes { get; }
 
     /// <summary>The text of PowerToys' settings file as the server will read it; null means PowerToys is not installed.</summary>
     public PowerToysSettingsHolder PowerToys { get; }
@@ -121,10 +131,24 @@ internal sealed class TestServer : IAsyncDisposable
         var powerToysSettings = new PowerToysSettingsHolder();
         var powerToys = new PowerToysShortcutResolver(config.Launcher, () => powerToysSettings.Json);
 
-        var deps = new ServerDependencies(config, pins, limiter, registry, state, connections, injector, screen, screen, dpi, apps, powerToys);
+        var urls = new FakeUrlOpener();
+        var powerBackend = new FakePowerBackend();
+        var processes = new FakeProcessCatalog
+        {
+            Apps =
+            [
+                new RunningApp(100, 1, "notepad", "Untitled - Notepad"),
+                new RunningApp(200, 2, "chrome", "Anime - Chrome"),
+                new RunningApp(300, 3, "explorer", "File Explorer"),
+            ],
+        };
+
+        var deps = new ServerDependencies(
+            config, pins, limiter, registry, state, connections, injector, screen, screen, dpi, apps, powerToys,
+            urls, new PowerService(powerBackend, time), new ProcessService(processes, ownPid: 999));
         var app = ServerFactory.Build(deps);
         await app.StartAsync();
-        return new TestServer(app, deps, injector, screen, scale, catalog, appsStore, powerToysSettings);
+        return new TestServer(app, deps, injector, screen, scale, catalog, appsStore, powerToysSettings, urls, powerBackend, processes);
     }
 
     /// <summary>Issues a PIN and pairs through the real endpoint. Returns the session JSON.</summary>

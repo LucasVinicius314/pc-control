@@ -1,3 +1,4 @@
+using PcControl.Core.Actions;
 using PcControl.Core.Apps;
 using PcControl.Core.Capture;
 using PcControl.Core.Config;
@@ -20,4 +21,7 @@ internal sealed record ServerDependencies(
     IJpegEncoder Encoder,
     DpiToggleService Dpi,
     AppsService Apps,
-    PowerToysShortcutResolver PowerToys);
+    PowerToysShortcutResolver PowerToys,
+    IUrlOpener UrlOpener,
+    PowerService Power,
+    ProcessService Processes);

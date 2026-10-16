@@ -8,6 +8,7 @@ import { MODIFIER_CODES, Modifiers } from "./modifiers";
 import { Link, type LinkState } from "./socket";
 import { loadPrefs, ViewClient } from "./views";
 import { createAppsPanel } from "./apps";
+import { createSystemPanel } from "./system";
 import { badgeText, changedMessage, failureMessage } from "./dpi";
 import { icon, type IconName } from "./icons";
 import { DISPLAY_FPS, MINI_ZOOMS, nextCorner, type ViewPrefs } from "./viewlogic";
@@ -276,6 +277,15 @@ export function showRemote(
   };
 
   const mediaButton = iconButton("media", "Media", () => void togglePanel(mediaPanel));
+  const systemFeatures = {
+    url: capabilities["sendUrl"] === true,
+    power: capabilities["power"] === true,
+    processes: capabilities["processKiller"] === true,
+  };
+  const systemPanel = createSystemPanel({ onMessage: (message) => showToast(message) }, systemFeatures);
+  const systemButton = iconButton("power", "System: links, power, close programs", () => {
+    if (togglePanel(systemPanel.element)) void systemPanel.open();
+  });
   const settingsButton = iconButton("settings", "Settings", () => void togglePanel(settings));
 
   const toolbar = document.createElement("nav");
@@ -295,6 +305,7 @@ export function showRemote(
     });
   }
   if (capabilities["media"] !== false && capabilities["keyboard"] !== false) toolbar.append(mediaButton);
+  if (systemFeatures.url || systemFeatures.power || systemFeatures.processes) toolbar.append(systemButton);
   toolbar.append(settingsButton);
 
   // ---- special keys ----------------------------------------------------------------------------
@@ -539,8 +550,9 @@ export function showRemote(
   panelButtons.set(drawer, keysButton);
   panelButtons.set(viewSheet, viewButton);
   panelButtons.set(mediaPanel, mediaButton);
+  panelButtons.set(systemPanel.element, systemButton);
   panelButtons.set(settings, settingsButton);
-  screen.append(header, pad, appsPanel.element, viewSheet, settings, drawer, mediaPanel, toolbar, keyboard.element);
+  screen.append(header, pad, appsPanel.element, viewSheet, settings, drawer, mediaPanel, systemPanel.element, toolbar, keyboard.element);
   root.replaceChildren(screen);
   root.classList.add("fill");
 

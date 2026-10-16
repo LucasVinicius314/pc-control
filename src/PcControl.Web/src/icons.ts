@@ -2,7 +2,7 @@
 // text colour so they follow the button's state (normal, active, disabled). No icon library, no
 // images to load: each one is a few shapes.
 
-export type IconName = "keyboard" | "leftClick" | "rightClick" | "keys" | "apps" | "search" | "view" | "dpi" | "media" | "settings";
+export type IconName = "keyboard" | "leftClick" | "rightClick" | "keys" | "apps" | "search" | "view" | "dpi" | "media" | "power" | "settings";
 
 interface Shape {
   tag: "path" | "rect" | "circle";
@@ -66,6 +66,9 @@ export const ICONS: Record<IconName, Shape[]> = {
 
   // A play triangle in a circle: media controls.
   media: [{ tag: "circle", attrs: { cx: "12", cy: "12", r: "9.5" } }, path("M10 8.2v7.6l6-3.8z", true)],
+
+  // The power symbol: a ring with a gap and a bar through it.
+  power: [path("M7.5 6.6a7.5 7.5 0 1 0 9 0"), path("M12 3v8")],
 
   // Three sliders: settings.
   settings: [

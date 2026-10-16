@@ -67,3 +67,5 @@ SetProcessDpiAwarenessContext
 ID3D11ShaderResourceView
 D3D11_BIND_FLAG
 D3D11_RESOURCE_MISC_FLAG
+LockWorkStation
+SetSuspendState

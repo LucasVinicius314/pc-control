@@ -184,6 +184,123 @@ paths:
           description: The shortcut was pressed.
         "409":
           description: The kill switch is on (`paused`).
+  /api/url:
+    post:
+      summary: Open a web address in the PC's default browser
+      description: |
+        Only http and https addresses. "example.com/x" is read as https. Anything else (file:, javascript:,
+        ms-settings:, programs, addresses with spaces or a user name) is refused with `invalid_url`.
+        Refused while the kill switch is on. Needs the `sendUrl` capability.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url:
+                  type: string
+                  maxLength: 2048
+      responses:
+        "200":
+          description: Opened. Returns `{ opened: true, url }` with the cleaned-up address.
+        "400":
+          description: Not a web address (`invalid_url`).
+        "403":
+          description: Switched off in the PC's config (`feature_disabled`).
+        "409":
+          description: The kill switch is on (`paused`).
+        "502":
+          description: Windows could not open it (`open_failed`).
+  /api/power:
+    get:
+      summary: A restart or shutdown that is counting down
+      responses:
+        "200":
+          description: "`{ pending: null }` or `{ pending: { action, secondsLeft } }`."
+    post:
+      summary: Lock, sleep, restart, shut down or sign out
+      description: |
+        `action` is `lock`, `sleep`, `restart`, `shutdown` or `signOut`. `restart`, `shutdown` and
+        `signOut` also need `"confirm": true`, otherwise `confirmation_required`. Restart and shutdown
+        count down 15 seconds first (`delaySeconds`) so a wrong tap can be cancelled. Refused while the
+        kill switch is on. Needs the `power` capability.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  enum: [lock, sleep, restart, shutdown, signOut]
+                confirm:
+                  type: boolean
+      responses:
+        "200":
+          description: Started. Returns `{ action, delaySeconds }`.
+        "400":
+          description: "`unknown_action` or `confirmation_required`."
+        "403":
+          description: Switched off in the PC's config (`feature_disabled`).
+        "409":
+          description: The kill switch is on (`paused`).
+        "502":
+          description: Windows refused (`power_failed`).
+  /api/power/pending:
+    delete:
+      summary: Cancel a restart or shutdown that is counting down
+      description: Still allowed while the kill switch is on, because it only makes the PC safer.
+      responses:
+        "204":
+          description: Cancelled.
+        "404":
+          description: Nothing was counting down (`nothing_pending`).
+  /api/processes:
+    get:
+      summary: Programs that have a window
+      description: |
+        The signed-in user's programs with a visible window, by title. Windows system processes and
+        this app are never listed. Ids are opaque and only valid for the latest list; process numbers
+        are never sent. Needs the `processKiller` capability.
+      responses:
+        "200":
+          description: "A list of `{ id, name, title }`."
+        "403":
+          description: Switched off in the PC's config (`feature_disabled`).
+  /api/processes/{id}/close:
+    post:
+      summary: Close a program from the latest list
+      description: |
+        Without `force` the program is asked to close its window (it may still ask to save). With
+        `"force": true` it is ended at once. An id that is not in the latest list is `unknown_process`.
+        Refused while the kill switch is on.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                force:
+                  type: boolean
+      responses:
+        "200":
+          description: Done. Returns `{ closed: true, title }`.
+        "404":
+          description: "`unknown_process` or `process_gone`."
+        "409":
+          description: The kill switch is on (`paused`).
+        "502":
+          description: The program did not close (`close_failed`).
   /api/dpi:
     get:
       summary: The display scale the toggle controls

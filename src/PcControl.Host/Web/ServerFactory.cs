@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.FileProviders;
+using PcControl.Core.Actions;
 using PcControl.Core.Capture;
 using PcControl.Core.Config;
 using PcControl.Core.Display;
@@ -16,7 +17,7 @@ internal static class ServerFactory
     {
         ArgumentNullException.ThrowIfNull(services);
 
-        var (config, pins, limiter, registry, state, connections, injector, capturer, encoder, dpi, apps, powerToys) = services;
+        var (config, pins, limiter, registry, state, connections, injector, capturer, encoder, dpi, apps, powerToys, urlOpener, power, processes) = services;
 
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions
         {
@@ -45,6 +46,9 @@ internal static class ServerFactory
         builder.Services.AddSingleton(dpi);
         builder.Services.AddSingleton(apps);
         builder.Services.AddSingleton(powerToys);
+        builder.Services.AddSingleton(urlOpener);
+        builder.Services.AddSingleton(power);
+        builder.Services.AddSingleton(processes);
         builder.Services.AddSingleton(new PointerCurve(config.Input.PointerGain));
 
         builder.Services.AddAuthentication(DeviceAuth.Scheme)

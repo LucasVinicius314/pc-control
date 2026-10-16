@@ -48,6 +48,7 @@ internal static class ApiEndpoints
         });
 
         AppEndpoints.Map(secured);
+        SystemEndpoints.Map(secured);
 
         secured.MapGet("/dpi", GetDpi);
         secured.MapPost("/dpi/toggle", ToggleDpi);
