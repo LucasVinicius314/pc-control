@@ -47,9 +47,17 @@ public sealed class FakeProcessCatalog : IProcessCatalog
 
     public List<(int Pid, bool Force)> Closed { get; } = [];
 
+    public List<int> Focused { get; } = [];
+
     public CloseOutcome Result { get; set; } = CloseOutcome.Ok;
 
     public IReadOnlyList<RunningApp> List() => Apps;
+
+    public CloseOutcome Focus(RunningApp app)
+    {
+        Focused.Add(app.Pid);
+        return Result;
+    }
 
     public CloseOutcome Close(RunningApp app, bool force)
     {
@@ -246,6 +254,30 @@ public class ProcessServiceTests
         Assert.Equal(ProcessOutcome.Ok, outcome);
         Assert.Equal("anime - Chrome", title);
         Assert.Equal([(20, true)], _catalog.Closed);
+    }
+
+    [Fact]
+    public void Switching_UsesTheIdFromTheList_AndOnlyFocuses()
+    {
+        var service = Create();
+        var chrome = service.GetList().Single(p => p.Name == "chrome");
+
+        var (outcome, title) = service.Switch(chrome.Id);
+
+        Assert.Equal(ProcessOutcome.Ok, outcome);
+        Assert.Equal("anime - Chrome", title);
+        Assert.Equal([20], _catalog.Focused);
+        Assert.Empty(_catalog.Closed);
+    }
+
+    [Fact]
+    public void SwitchingToAnUnlistedId_IsRefused()
+    {
+        var service = Create();
+        service.GetList();
+
+        Assert.Equal(ProcessOutcome.Unknown, service.Switch("0000000000000000").Outcome);
+        Assert.Empty(_catalog.Focused);
     }
 
     [Fact]

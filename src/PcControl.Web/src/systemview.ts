@@ -81,6 +81,7 @@ export function processMessage(error: unknown): string {
   if (shared) return shared;
   if (error instanceof ApiError) {
     if (error.code === "unknown_process" || error.code === "process_gone") return "That program is already closed. The list was refreshed.";
+    if (error.code === "focus_failed") return error.detail ?? "Windows would not bring that program to the front.";
     if (error.code === "close_failed") return error.detail ?? "The program did not close. Try Force close.";
   }
   return NETWORK;

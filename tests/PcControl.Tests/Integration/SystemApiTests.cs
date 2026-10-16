@@ -203,6 +203,35 @@ public class SystemApiTests
         Assert.False(server.Processes.Closed.Single().Force);
     }
 
+    [Fact]
+    public async Task SwitchingToAProgram_BringsItToTheFront()
+    {
+        await using var server = await TestServer.StartAsync();
+        await server.PairAsync();
+        var list = await server.Http.GetFromJsonAsync<JsonElement>("/api/processes");
+        var chrome = list.EnumerateArray().Single(p => p.GetProperty("name").GetString() == "chrome").GetProperty("id").GetString();
+
+        var response = await server.Http.PostAsync($"/api/processes/{chrome}/focus", null);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal([200], server.Processes.Focused);
+        Assert.Empty(server.Processes.Closed);
+    }
+
+    [Fact]
+    public async Task SwitchingToAnUnlistedProgram_OrWhilePaused_DoesNothing()
+    {
+        await using var server = await TestServer.StartAsync();
+        await server.PairAsync();
+        var list = await server.Http.GetFromJsonAsync<JsonElement>("/api/processes");
+        var id = list[0].GetProperty("id").GetString();
+
+        Assert.Equal(HttpStatusCode.NotFound, (await server.Http.PostAsync("/api/processes/0000000000000000/focus", null)).StatusCode);
+        server.State.Paused = true;
+        Assert.Equal(HttpStatusCode.Conflict, (await server.Http.PostAsync($"/api/processes/{id}/focus", null)).StatusCode);
+        Assert.Empty(server.Processes.Focused);
+    }
+
     [Theory]
     [InlineData("100")]
     [InlineData("0000000000000000")]

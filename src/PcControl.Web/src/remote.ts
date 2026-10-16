@@ -8,7 +8,9 @@ import { MODIFIER_CODES, Modifiers } from "./modifiers";
 import { Link, type LinkState } from "./socket";
 import { loadPrefs, ViewClient } from "./views";
 import { createAppsPanel } from "./apps";
-import { createSystemPanel } from "./system";
+import { createHub } from "./hub";
+import { createMediaPanel } from "./media";
+import { createSystemPanel, heading } from "./system";
 import { badgeText, changedMessage, failureMessage } from "./dpi";
 import { icon, type IconName } from "./icons";
 import { DISPLAY_FPS, MINI_ZOOMS, nextCorner, type ViewPrefs } from "./viewlogic";
@@ -208,27 +210,41 @@ export function showRemote(
       panelButtons.get(panel)?.classList.add("on");
     }
     // The launcher is a long list, so it takes the trackpad's place while it is open.
-    screen.classList.toggle("apps-open", !appsPanel.element.hidden);
+    screen.classList.toggle("apps-open", !launcherHub.element.hidden);
     return opening;
   };
 
   const appsPanel = createAppsPanel(
     {
       onLaunched: (name) => {
-        togglePanel(appsPanel.element); // close the launcher so the app can be seen on the preview
+        togglePanel(launcherHub.element); // close the launcher so the app can be seen on the preview
         showToast(`Launching ${name}…`);
       },
       onProblem: (message) => showToast(message),
       onPowerToysOpened: (message) => {
-        togglePanel(appsPanel.element);
+        togglePanel(launcherHub.element);
         keyboard.show(); // PowerToys Run is waiting for typing
         showToast(message);
       },
     },
     capabilities["powerToysRun"] !== false,
   );
-  const appsButton = iconButton("apps", "Apps", () => {
-    if (togglePanel(appsPanel.element)) void appsPanel.open();
+  // The launcher groups what is about starting and finding things on the PC: apps, programs that are
+  // already running (switch to or close them) and opening a web link.
+  const showApps = capabilities["appLauncher"] !== false;
+  const showRunning = capabilities["processKiller"] === true;
+  const showLink = capabilities["sendUrl"] === true;
+  const say = { onMessage: (message: string) => showToast(message) };
+  const runningView = createSystemPanel(say, { url: false, power: false, processes: true });
+  const linkView = createSystemPanel(say, { url: true, power: false, processes: false });
+  appsPanel.element.hidden = false; // the hub decides which tab is visible
+  const launcherHub = createHub([
+    ...(showApps ? [{ id: "apps", label: "Apps", element: appsPanel.element, onShow: () => appsPanel.open() }] : []),
+    ...(showRunning ? [{ id: "running", label: "Running", element: runningView.element, onShow: () => runningView.open() }] : []),
+    ...(showLink ? [{ id: "link", label: "Link", element: linkView.element }] : []),
+  ]);
+  const appsButton = iconButton("apps", "Apps, running programs and links", () => {
+    if (togglePanel(launcherHub.element)) void launcherHub.open();
   });
 
   const keysButton = iconButton("keys", "Special keys", () => void togglePanel(drawer));
@@ -240,8 +256,12 @@ export function showRemote(
   dpiBadge.className = "badge";
   dpiBadge.textContent = badgeText(null);
   let dpiBusy = false;
-  const dpiButton = iconButton("dpi", "Display scale", () => void toggleDpi());
-  dpiButton.append(dpiBadge);
+  const dpiButton = button("", "dpi-row", () => void toggleDpi());
+  dpiButton.title = "Switch the PC's display scale between its low and high setting";
+  dpiButton.setAttribute("aria-label", dpiButton.title);
+  const dpiLabel = document.createElement("span");
+  dpiLabel.textContent = "Display scale";
+  dpiButton.append(icon("dpi"), dpiLabel, dpiBadge);
 
   const refreshDpi = async () => {
     try {
@@ -277,15 +297,16 @@ export function showRemote(
   };
 
   const mediaButton = iconButton("media", "Media", () => void togglePanel(mediaPanel));
-  const systemFeatures = {
-    url: capabilities["sendUrl"] === true,
-    power: capabilities["power"] === true,
-    processes: capabilities["processKiller"] === true,
-  };
-  const systemPanel = createSystemPanel({ onMessage: (message) => showToast(message) }, systemFeatures);
-  const systemButton = iconButton("power", "System: links, power, close programs", () => {
-    if (togglePanel(systemPanel.element)) void systemPanel.open();
+  // The PC panel: power, and the display scale (it changes the PC's screen, so it lives here).
+  const pcPanel = createSystemPanel(say, { url: false, power: capabilities["power"] === true, processes: false, titles: true });
+  const showDpi = capabilities["dpiToggle"] === true;
+  const pcButton = iconButton("power", "PC: power and display scale", () => {
+    if (togglePanel(pcPanel.element)) {
+      void pcPanel.open();
+      if (showDpi) void refreshDpi();
+    }
   });
+  if (showDpi) pcPanel.element.append(heading("Display"), dpiButton);
   const settingsButton = iconButton("settings", "Settings", () => void togglePanel(settings));
 
   const toolbar = document.createElement("nav");
@@ -294,18 +315,18 @@ export function showRemote(
   if (capabilities["keyboard"] !== false) toolbar.append(keyboardButton);
   toolbar.append(leftButton, rightButton);
   if (capabilities["keyboard"] !== false) toolbar.append(keysButton);
-  if (capabilities["appLauncher"] !== false) toolbar.append(appsButton);
-  if (capabilities["magnifier"] !== false || capabilities["screenshot"] !== false) toolbar.append(viewButton);
-  if (capabilities["dpiToggle"] === true) {
-    toolbar.append(dpiButton);
-    void refreshDpi();
-    // The scale can be changed on the PC too, so look again whenever the page comes back.
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") void refreshDpi();
-    });
-  }
+  if (showApps || showRunning || showLink) toolbar.append(appsButton);
   if (capabilities["media"] !== false && capabilities["keyboard"] !== false) toolbar.append(mediaButton);
-  if (systemFeatures.url || systemFeatures.power || systemFeatures.processes) toolbar.append(systemButton);
+  if (capabilities["magnifier"] !== false || capabilities["screenshot"] !== false) toolbar.append(viewButton);
+  if (capabilities["power"] === true || showDpi) {
+    toolbar.append(pcButton);
+    if (showDpi) {
+      // The scale can be changed on the PC too, so look again whenever the page comes back.
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible" && !pcPanel.element.hidden) void refreshDpi();
+      });
+    }
+  }
   toolbar.append(settingsButton);
 
   // ---- special keys ----------------------------------------------------------------------------
@@ -351,61 +372,7 @@ export function showRemote(
     row(...fKeys.slice(6)),
   );
 
-  // ---- media -----------------------------------------------------------------------------------
-  // Holding a seek or volume button keeps repeating it, like holding the key on a keyboard.
-  const repeatKey = (label: string, code: string, title: string) => {
-    const b = button(label, "key");
-    b.title = title;
-    b.setAttribute("aria-label", title);
-    let delay = 0;
-    let timer = 0;
-    const stop = () => {
-      window.clearTimeout(delay);
-      window.clearInterval(timer);
-    };
-    b.addEventListener("pointerdown", () => {
-      input.key(code, "press");
-      stop();
-      delay = window.setTimeout(() => (timer = window.setInterval(() => input.key(code, "press"), 120)), 400);
-    });
-    for (const ev of ["pointerup", "pointercancel", "pointerleave"]) b.addEventListener(ev, stop);
-    return b;
-  };
-  const tap = (label: string, code: string, title: string) => {
-    const b = button(label, "key", () => input.key(code, "press"));
-    b.title = title;
-    b.setAttribute("aria-label", title);
-    return b;
-  };
-
-  const mediaPanel = document.createElement("div");
-  mediaPanel.className = "drawer";
-  mediaPanel.hidden = true;
-  mediaPanel.append(
-    row(
-      tap("⏮", "MediaTrackPrevious", "Previous"),
-      tap("⏯", "MediaPlayPause", "Play / pause"),
-      tap("⏭", "MediaTrackNext", "Next"),
-      tap("⛶ F", "KeyF", "Fullscreen (F)"),
-    ),
-    row(
-      repeatKey("«10", "KeyJ", "Back 10 s (J)"),
-      repeatKey("◀ 5", "ArrowLeft", "Back 5 s (left arrow)"),
-      repeatKey("5 ▶", "ArrowRight", "Forward 5 s (right arrow)"),
-      repeatKey("10»", "KeyL", "Forward 10 s (L)"),
-    ),
-    row(
-      repeatKey("🔉", "AudioVolumeDown", "PC volume down"),
-      tap("🔇", "AudioVolumeMute", "Mute the PC"),
-      repeatKey("🔊", "AudioVolumeUp", "PC volume up"),
-    ),
-    row(
-      repeatKey("▼ player", "ArrowDown", "Player volume down (down arrow)"),
-      repeatKey("▲ player", "ArrowUp", "Player volume up (up arrow)"),
-      tap("Space", "Space", "Pause in the player (Space)"),
-      tap("Esc", "Escape", "Leave fullscreen (Esc)"),
-    ),
-  );
+  const mediaPanel = createMediaPanel(input);
 
   // ---- settings --------------------------------------------------------------------------------
   const sensitivityInput = document.createElement("input");
@@ -546,13 +513,13 @@ export function showRemote(
 
   const screen = document.createElement("div");
   screen.className = "remote";
-  panelButtons.set(appsPanel.element, appsButton);
+  panelButtons.set(launcherHub.element, appsButton);
   panelButtons.set(drawer, keysButton);
   panelButtons.set(viewSheet, viewButton);
   panelButtons.set(mediaPanel, mediaButton);
-  panelButtons.set(systemPanel.element, systemButton);
+  panelButtons.set(pcPanel.element, pcButton);
   panelButtons.set(settings, settingsButton);
-  screen.append(header, pad, appsPanel.element, viewSheet, settings, drawer, mediaPanel, systemPanel.element, toolbar, keyboard.element);
+  screen.append(header, pad, launcherHub.element, viewSheet, settings, drawer, mediaPanel, pcPanel.element, toolbar, keyboard.element);
   root.replaceChildren(screen);
   root.classList.add("fill");
 

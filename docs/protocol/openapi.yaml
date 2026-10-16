@@ -301,6 +301,25 @@ paths:
           description: The kill switch is on (`paused`).
         "502":
           description: The program did not close (`close_failed`).
+  /api/processes/{id}/focus:
+    post:
+      summary: Bring a program from the latest list to the front
+      description: Like Alt+Tab; a minimised window is restored. Same id rules and kill-switch behaviour as close.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Done. Returns `{ focused: true, title }`.
+        "404":
+          description: "`unknown_process` or `process_gone`."
+        "409":
+          description: The kill switch is on (`paused`).
+        "502":
+          description: Windows would not do it (`focus_failed`).
   /api/dpi:
     get:
       summary: The display scale the toggle controls

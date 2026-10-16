@@ -120,6 +120,7 @@ export const api = {
     request<{ action: string; delaySeconds: number }>("POST", "/api/power", { action, confirm }),
   cancelPower: () => request<void>("DELETE", "/api/power/pending"),
   processes: () => request<ProcessItem[]>("GET", "/api/processes"),
+  focusProcess: (id: string) => request<{ focused: boolean; title: string }>("POST", `/api/processes/${id}/focus`),
   closeProcess: (id: string, force: boolean) =>
     request<{ closed: boolean; title: string }>("POST", `/api/processes/${id}/close`, { force }),
   pair: (pin: string, deviceName: string) =>

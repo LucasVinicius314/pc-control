@@ -22,6 +22,9 @@ public interface IProcessCatalog
     /// process with that pid did not start at <see cref="RunningApp.StartTicks"/> (the pid was reused).
     /// </summary>
     CloseOutcome Close(RunningApp app, bool force);
+
+    /// <summary>Brings the program's window to the front (restoring it if minimised), like Alt+Tab. Same checks as <see cref="Close"/>.</summary>
+    CloseOutcome Focus(RunningApp app);
 }
 
 /// <summary>What the phone sees of a program: an opaque id, never a process id.</summary>
@@ -78,7 +81,11 @@ public sealed class ProcessService(IProcessCatalog catalog, int ownPid)
         return apps.Select(a => new ProcessItem(IdOf(a), a.ProcessName, a.Title)).ToList();
     }
 
-    public (ProcessOutcome Outcome, string? Title) Close(string id, bool force)
+    public (ProcessOutcome Outcome, string? Title) Switch(string id) => Act(id, app => catalog.Focus(app));
+
+    public (ProcessOutcome Outcome, string? Title) Close(string id, bool force) => Act(id, app => catalog.Close(app, force));
+
+    private (ProcessOutcome Outcome, string? Title) Act(string id, Func<RunningApp, CloseOutcome> action)
     {
         RunningApp? app;
         lock (_gate)
@@ -91,7 +98,7 @@ public sealed class ProcessService(IProcessCatalog catalog, int ownPid)
             return (ProcessOutcome.Unknown, null);
         }
 
-        var outcome = catalog.Close(app, force) switch
+        var outcome = action(app) switch
         {
             CloseOutcome.Ok => ProcessOutcome.Ok,
             CloseOutcome.Gone => ProcessOutcome.Gone,

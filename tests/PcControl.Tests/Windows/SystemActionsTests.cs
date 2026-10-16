@@ -57,4 +57,35 @@ public class SystemActionsTests(ITestOutputHelper output)
 
         Assert.Equal(CloseOutcome.Gone, new WindowsProcessCatalog().Close(new RunningApp(int.MaxValue, 1, "nothing", "nothing"), force: false));
     }
+
+    [Fact]
+    public void FocusingTheWindowThatIsAlreadyInFront_Works_AndLeavesTheScreenAlone()
+    {
+        if (!Enabled)
+        {
+            return;
+        }
+
+        var catalog = new WindowsProcessCatalog();
+        var front = global::Windows.Win32.PInvoke.GetForegroundWindow();
+        _ = global::Windows.Win32.PInvoke.GetWindowThreadProcessId(front, out var pid);
+        var app = catalog.List().FirstOrDefault(a => a.Pid == (int)pid);
+        if (app is null)
+        {
+            return; // the front window belongs to something without a listed window (for example the desktop)
+        }
+
+        Assert.Equal(CloseOutcome.Ok, catalog.Focus(app));
+    }
+
+    [Fact]
+    public void FocusingAnImpostor_IsRefused()
+    {
+        if (!Enabled)
+        {
+            return;
+        }
+
+        Assert.Equal(CloseOutcome.Gone, new WindowsProcessCatalog().Focus(new RunningApp(Environment.ProcessId, 1, "x", "x")));
+    }
 }

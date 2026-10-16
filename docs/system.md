@@ -1,7 +1,14 @@
 # Links, power and closing programs
 
-Three things the phone can do on the PC besides pointing and typing. They sit behind the **System**
-button (the power symbol) in the phone's toolbar and can each be switched off in `config.json`:
+Three things the phone can do on the PC besides pointing and typing. They sit in two places in the
+phone's toolbar, grouped by what you want to do:
+
+* **Apps** (the four-tile button) has three tabs: **Apps** (the Start menu and PowerToys Run),
+  **Running** (programs that are already open: switch to or close them) and **Link** (open a web
+  address on the PC).
+* **PC** (the power symbol) has the power buttons and the display scale switch.
+
+Each can be switched off in `config.json`:
 
 ```json
 { "features": { "urlOpen": true, "power": true, "processKiller": true } }
@@ -35,10 +42,11 @@ PC, `shutdown /a` also cancels it. Windows shows its own countdown message on th
 
 Sleep uses the normal sleep state. If your PC hibernates instead, check Windows' power settings.
 
-## Close a program
+## Switch to or close a program
 
 The list shows programs that have a window in your session, by window title. **Close** asks the
 program to close (it may still ask to save); **Force** ends it immediately and unsaved work is lost.
+The window button brings that program to the front, like Alt+Tab, and restores it if it was minimised.
 
 Safety rules: Windows system processes (Explorer, the shell, services) and PC Control itself are never
 listed; the phone never sees process numbers, only opaque ids from the latest list; and a program

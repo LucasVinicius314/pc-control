@@ -22,6 +22,7 @@ internal static class SystemEndpoints
 
         secured.MapGet("/processes", GetProcesses);
         secured.MapPost("/processes/{id}/close", CloseProcess);
+        secured.MapPost("/processes/{id}/focus", FocusProcess);
     }
 
     private static IResult Disabled() =>
@@ -165,6 +166,38 @@ internal static class SystemEndpoints
             default:
                 return Results.Json(
                     new { error = "close_failed", message = $"{title} did not close." },
+                    statusCode: StatusCodes.Status502BadGateway);
+        }
+    }
+
+    private static IResult FocusProcess(string id, AppConfig config, ProcessService processes, RemoteControlState state, HttpContext context, ILogger<ProcessService> logger)
+    {
+        if (!config.Features.ProcessKiller)
+        {
+            return Disabled();
+        }
+
+        if (ApiEndpoints.RefusedWhilePaused(state) is { } paused)
+        {
+            return paused;
+        }
+
+        var (outcome, title) = processes.Switch(id);
+        switch (outcome)
+        {
+            case ProcessOutcome.Ok:
+                logger.LogInformation("{DeviceName} switched to {Program}", context.User.Identity!.Name, title);
+                return Results.Json(new { focused = true, title });
+
+            case ProcessOutcome.Unknown:
+                return Results.Json(new { error = "unknown_process" }, statusCode: StatusCodes.Status404NotFound);
+
+            case ProcessOutcome.Gone:
+                return Results.Json(new { error = "process_gone" }, statusCode: StatusCodes.Status404NotFound);
+
+            default:
+                return Results.Json(
+                    new { error = "focus_failed", message = $"Windows would not bring {title} to the front." },
                     statusCode: StatusCodes.Status502BadGateway);
         }
     }

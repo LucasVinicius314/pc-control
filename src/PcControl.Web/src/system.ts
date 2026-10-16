@@ -1,4 +1,5 @@
-// The system panel: open a link on the PC, power buttons, and a list of programs that can be closed.
+// The building blocks of the launcher tabs and the PC panel: open a link, running programs (switch to
+// or close), and power buttons. Each is made on its own with the features it should show.
 
 import { api, type ProcessItem } from "./api";
 import { icon, type IconName } from "./icons";
@@ -21,6 +22,8 @@ export interface SystemPanelFeatures {
   url: boolean;
   power: boolean;
   processes: boolean;
+  /** Show a small title above each section. Off when the panel sits under a tab that already says what it is. */
+  titles?: boolean;
 }
 
 export interface SystemPanel {
@@ -38,7 +41,7 @@ const POWER_BUTTONS: { action: PowerName; label: string; hint: string; icon: Ico
 ];
 
 /** A button with an icon, a short label, and the same words as a tooltip and for screen readers. */
-function tile(className: string, iconName: IconName, label: string, hint: string): { button: HTMLButtonElement; label: HTMLElement } {
+export function tile(className: string, iconName: IconName, label: string, hint: string): { button: HTMLButtonElement; label: HTMLElement } {
   const b = document.createElement("button");
   b.type = "button";
   b.className = className;
@@ -52,7 +55,7 @@ function tile(className: string, iconName: IconName, label: string, hint: string
   return { button: b, label: text };
 }
 
-function heading(text: string): HTMLElement {
+export function heading(text: string): HTMLElement {
   const h = document.createElement("h2");
   h.className = "sys-title";
   h.textContent = text;
@@ -61,8 +64,9 @@ function heading(text: string): HTMLElement {
 
 export function createSystemPanel(handlers: SystemPanelHandlers, features: SystemPanelFeatures): SystemPanel {
   const panel = document.createElement("section");
-  panel.className = "system-panel card";
+  panel.className = features.titles ? "system-panel card" : "hub-pane";
   panel.hidden = true;
+  const titled = (text: string): HTMLElement[] => (features.titles ? [heading(text)] : []);
 
   let countdownTimer = 0;
   let refreshProcesses: () => Promise<void> = async () => {};
@@ -101,7 +105,7 @@ export function createSystemPanel(handlers: SystemPanelHandlers, features: Syste
     const row = document.createElement("div");
     row.className = "sys-row";
     row.append(input, open);
-    panel.append(heading("Open a link"), row);
+    panel.append(...titled("Open a link"), row);
   }
 
   // ---- power ------------------------------------------------------------------------------------
@@ -153,7 +157,7 @@ export function createSystemPanel(handlers: SystemPanelHandlers, features: Syste
     const row = document.createElement("div");
     row.className = "sys-power";
     for (const { action, label, hint, icon: iconName } of POWER_BUTTONS) {
-      const t = tile("power-tile", iconName, label, hint);
+      const t = tile("tile", iconName, label, hint);
       const b = t.button;
       if (needsConfirmation(action)) b.classList.add("danger");
       b.addEventListener("click", () => {
@@ -206,7 +210,7 @@ export function createSystemPanel(handlers: SystemPanelHandlers, features: Syste
       }
     };
 
-    panel.append(heading("Power"), row, banner);
+    panel.append(...titled("Power"), row, banner);
   }
 
   // ---- programs ---------------------------------------------------------------------------------
@@ -217,6 +221,16 @@ export function createSystemPanel(handlers: SystemPanelHandlers, features: Syste
     const empty = document.createElement("p");
     empty.className = "sys-empty";
     empty.textContent = "No programs with a window are open.";
+
+    const focus = async (item: ProcessItem) => {
+      try {
+        await api.focusProcess(item.id);
+        handlers.onMessage(`Switched to ${item.title}.`);
+      } catch (error) {
+        handlers.onMessage(processMessage(error));
+        void refreshProcesses();
+      }
+    };
 
     const close = async (item: ProcessItem, force: boolean) => {
       try {
@@ -249,11 +263,13 @@ export function createSystemPanel(handlers: SystemPanelHandlers, features: Syste
           program.textContent = item.name;
           text.append(name, program);
 
+          const show = tile("round", "window", "", `Switch to ${item.title}`).button;
+          show.addEventListener("click", () => void focus(item));
           const gentle = tile("round", "closeX", "", `Close ${item.title}`).button;
           gentle.addEventListener("click", () => void close(item, false));
           const force = tile("round danger", "force", "", `Force close ${item.title}: ends it now, unsaved work is lost`).button;
           force.addEventListener("click", () => void close(item, true));
-          row.append(text, gentle, force);
+          row.append(text, show, gentle, force);
           return row;
         }),
       );
@@ -267,7 +283,7 @@ export function createSystemPanel(handlers: SystemPanelHandlers, features: Syste
       }
     };
 
-    panel.append(heading("Close a program"), list);
+    panel.append(...titled("Switch to or close a program"), list);
   }
 
   return {

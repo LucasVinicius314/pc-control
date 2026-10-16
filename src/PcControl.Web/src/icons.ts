@@ -2,7 +2,7 @@
 // text colour so they follow the button's state (normal, active, disabled). No icon library, no
 // images to load: each one is a few shapes.
 
-export type IconName = "keyboard" | "leftClick" | "rightClick" | "keys" | "apps" | "search" | "view" | "dpi" | "media" | "power" | "settings" | "lock" | "sleep" | "signOut" | "restart" | "closeX" | "force" | "link";
+export type IconName = "keyboard" | "leftClick" | "rightClick" | "keys" | "apps" | "search" | "view" | "dpi" | "media" | "power" | "settings" | "lock" | "sleep" | "signOut" | "restart" | "closeX" | "window" | "force" | "link" | "skipPrev" | "skipNext" | "playPause" | "back" | "forward" | "volumeDown" | "volumeUp" | "mute" | "fullscreen" | "chevronUp" | "chevronDown";
 
 interface Shape {
   tag: "path" | "rect" | "circle";
@@ -85,6 +85,9 @@ export const ICONS: Record<IconName, Shape[]> = {
   // A circular arrow: restart.
   restart: [path("M4.5 12a7.5 7.5 0 1 0 2.4-5.5"), path("M4 4v4.5h4.5")],
 
+  // A window with a title bar: switch to it.
+  window: [{ tag: "rect", attrs: { x: "3", y: "5", width: "18", height: "14", rx: "2.5" } }, path("M3 9.5h18")],
+
   // A cross: close.
   closeX: [path("M6 6l12 12M18 6 6 18")],
 
@@ -96,6 +99,19 @@ export const ICONS: Record<IconName, Shape[]> = {
     path("M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"),
     path("M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"),
   ],
+
+  // Media controls.
+  skipPrev: [path("M18 6.5 10 12l8 5.5z"), path("M6 6v12")],
+  skipNext: [path("M6 6.5 14 12l-8 5.5z"), path("M18 6v12")],
+  playPause: [path("M4.5 5.5 13 12l-8.5 6.5z"), path("M17 5.5v13M21 5.5v13")],
+  back: [path("M12 6.5 4 12l8 5.5z"), path("M21 6.5 13 12l8 5.5z")],
+  forward: [path("M12 6.5 20 12l-8 5.5z"), path("M3 6.5 11 12l-8 5.5z")],
+  volumeDown: [path("M4 10v4h4l5 4V6l-5 4z"), path("M16.5 9.5a4 4 0 0 1 0 5")],
+  volumeUp: [path("M4 10v4h4l5 4V6l-5 4z"), path("M16.5 9.5a4 4 0 0 1 0 5M19 7a8 8 0 0 1 0 10")],
+  mute: [path("M4 10v4h4l5 4V6l-5 4z"), path("M17 9.5l4.5 5M21.5 9.5l-4.5 5")],
+  fullscreen: [path("M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5")],
+  chevronUp: [path("M6 15l6-6 6 6")],
+  chevronDown: [path("M6 9l6 6 6-6")],
 
   // Three sliders: settings.
   settings: [

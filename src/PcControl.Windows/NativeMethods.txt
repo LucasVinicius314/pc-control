@@ -69,3 +69,11 @@ D3D11_BIND_FLAG
 D3D11_RESOURCE_MISC_FLAG
 LockWorkStation
 SetSuspendState
+SetForegroundWindow
+IsIconic
+ShowWindow
+GetForegroundWindow
+GetWindowThreadProcessId
+AttachThreadInput
+GetCurrentThreadId
+IsWindow

@@ -3,6 +3,8 @@ using System.Diagnostics;
 using System.Globalization;
 using PcControl.Core.Actions;
 using Windows.Win32;
+using Windows.Win32.Foundation;
+using Windows.Win32.UI.WindowsAndMessaging;
 
 namespace PcControl.Windows;
 
@@ -114,6 +116,72 @@ public sealed class WindowsProcessCatalog : IProcessCatalog
         }
 
         return result;
+    }
+
+    public CloseOutcome Focus(RunningApp app)
+    {
+        ArgumentNullException.ThrowIfNull(app);
+
+        Process process;
+        try
+        {
+            process = Process.GetProcessById(app.Pid);
+        }
+        catch (ArgumentException)
+        {
+            return CloseOutcome.Gone;
+        }
+
+        using (process)
+        {
+            try
+            {
+                if (process.StartTime.Ticks != app.StartTicks)
+                {
+                    return CloseOutcome.Gone;
+                }
+
+                var window = new HWND(process.MainWindowHandle);
+                if (window.IsNull || !PInvoke.IsWindow(window))
+                {
+                    return CloseOutcome.Failed;
+                }
+
+                if (PInvoke.IsIconic(window))
+                {
+                    PInvoke.ShowWindow(window, SHOW_WINDOW_CMD.SW_RESTORE);
+                }
+
+                return BringToFront(window) ? CloseOutcome.Ok : CloseOutcome.Failed;
+            }
+            catch (Exception ex) when (ex is Win32Exception or InvalidOperationException or NotSupportedException)
+            {
+                return process.HasExited ? CloseOutcome.Gone : CloseOutcome.Failed;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Windows only lets the program that owns the foreground window change it. Joining the input queue
+    /// of the current foreground window for a moment is the usual way to be allowed to.
+    /// </summary>
+    private static bool BringToFront(HWND window)
+    {
+        var foreground = PInvoke.GetForegroundWindow();
+        var foregroundThread = foreground.IsNull ? 0u : PInvoke.GetWindowThreadProcessId(foreground, out _);
+        var thisThread = PInvoke.GetCurrentThreadId();
+        var attached = foregroundThread != 0 && foregroundThread != thisThread && PInvoke.AttachThreadInput(thisThread, foregroundThread, true);
+        try
+        {
+            return PInvoke.SetForegroundWindow(window);
+        }
+        finally
+        {
+            if (attached)
+            {
+                PInvoke.AttachThreadInput(thisThread, foregroundThread, false);
+            }
+        }
     }
 
     public CloseOutcome Close(RunningApp app, bool force)

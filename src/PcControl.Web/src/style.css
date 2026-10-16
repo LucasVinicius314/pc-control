@@ -661,7 +661,7 @@ button.sys-cancel {
   gap: 6px;
 }
 
-button.power-tile {
+button.tile {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -679,16 +679,16 @@ button.power-tile {
   border-radius: 14px;
 }
 
-button.power-tile:active {
+button.tile:active {
   background: var(--panel);
 }
 
-button.power-tile.danger {
+button.tile.danger {
   color: var(--bad);
   border-color: color-mix(in srgb, var(--bad) 35%, var(--line));
 }
 
-button.power-tile.danger.armed {
+button.tile.danger.armed {
   background: var(--bad);
   border-color: var(--bad);
   color: #1b0707;
@@ -779,4 +779,125 @@ button.round .icon {
   margin: 0;
   padding: 8px 0;
   color: var(--muted);
+}
+
+/* ---- launcher hub: tabs for apps, running programs and links ---- */
+
+.hub {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hub[hidden] {
+  display: none;
+}
+
+.hub > .apps-panel,
+.hub > .hub-pane {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.hub-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+}
+
+.hub-pane[hidden] {
+  display: none;
+}
+
+.segmented {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+
+.segmented button {
+  min-height: 38px;
+  padding: 0 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: 10px;
+}
+
+.segmented button.on {
+  color: var(--text);
+  background: var(--bg);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+/* The display scale, as a wide row in the PC panel. */
+button.dpi-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 0 14px;
+  font-weight: 600;
+  text-align: left;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+button.dpi-row span:first-of-type {
+  flex: 1;
+}
+
+button.dpi-row .badge {
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+
+button.dpi-row.busy {
+  opacity: 0.6;
+}
+
+/* ---- media panel ---- */
+
+.media-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+}
+
+.media-panel[hidden] {
+  display: none;
+}
+
+.media-grid {
+  display: grid;
+  gap: 6px;
+}
+
+/* Play / pause is the one button used most; it gets the middle and the accent colour. */
+.media-grid.transport {
+  grid-template-columns: 1fr 1.5fr 1fr !important;
+}
+
+button.tile.primary {
+  min-height: 76px;
+  color: #04121f;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+button.tile.primary:active {
+  background: color-mix(in srgb, var(--accent) 80%, black);
 }
