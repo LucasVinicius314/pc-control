@@ -3,6 +3,30 @@ using PcControl.Core.Games;
 
 namespace PcControl.Host.Web;
 
+/// <summary>Tells what kind of picture a file is from its first bytes (covers can be png, jpeg or webp).</summary>
+internal static class ImageTypes
+{
+    public static string Sniff(byte[] data)
+    {
+        if (data.Length >= 3 && data[0] == 0xFF && data[1] == 0xD8 && data[2] == 0xFF)
+        {
+            return "image/jpeg";
+        }
+
+        if (data.Length >= 12 && data[0] == 'R' && data[1] == 'I' && data[2] == 'F' && data[3] == 'F' && data[8] == 'W' && data[9] == 'E' && data[10] == 'B' && data[11] == 'P')
+        {
+            return "image/webp";
+        }
+
+        if (data.Length >= 4 && data[0] == 'G' && data[1] == 'I' && data[2] == 'F' && data[3] == '8')
+        {
+            return "image/gif";
+        }
+
+        return "image/png";
+    }
+}
+
 /// <summary>The games shelf: the game list, their pictures, and starting one.</summary>
 internal static class GameEndpoints
 {
@@ -26,7 +50,7 @@ internal static class GameEndpoints
         {
             available = true,
             reason = (string?)null,
-            games = list.Games.Select(g => new { id = g.Id, title = g.Title, serial = g.Serial, source = "rpcs3" }),
+            games = list.Games.Select(g => new { id = g.Id, title = g.Title, serial = g.Serial, source = g.Source }),
             recent = list.Recent,
         });
     }
@@ -40,7 +64,7 @@ internal static class GameEndpoints
         }
 
         context.Response.Headers.CacheControl = "private, max-age=3600";
-        return Results.File(png, "image/png");
+        return Results.File(png, ImageTypes.Sniff(png));
     }
 
     private static IResult Launch(string id, GamesService games, RemoteControlState state, HttpContext context, ILogger<GamesService> logger)
@@ -61,9 +85,10 @@ internal static class GameEndpoints
                 return Results.Json(new { error = "unknown_game" }, statusCode: StatusCodes.Status404NotFound);
 
             default:
-                logger.LogWarning("{DeviceName} tried to start {Game} but it did not start", context.User.Identity!.Name, result.App!.Name);
+                var why = games.ProblemFor(id);
+                logger.LogWarning("{DeviceName} tried to start {Game} but it did not start{Why}", context.User.Identity!.Name, result.App!.Name, why is null ? string.Empty : ": " + why);
                 return Results.Json(
-                    new { error = "launch_failed", message = $"{result.App.Name} did not start." },
+                    new { error = "launch_failed", message = why ?? $"{result.App.Name} did not start." },
                     statusCode: StatusCodes.Status502BadGateway);
         }
     }

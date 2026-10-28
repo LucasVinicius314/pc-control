@@ -60,14 +60,18 @@ export function shelf(...children: HTMLElement[]): HTMLElement {
 }
 
 /** Puts an image into a card; a card without a picture shows the first letter instead. */
-export function cover(src: string, fallbackText: string, className = "cover"): HTMLElement {
+export function cover(src: string, fallbackText: string, className = "cover", fill = false): HTMLElement {
   const box = el("div", className);
   const letter = el("span", "cover-letter", fallbackText.trim().charAt(0).toUpperCase());
   const img = el("img");
   img.alt = "";
   img.loading = "lazy";
   img.draggable = false;
-  img.addEventListener("load", () => letter.remove());
+  img.addEventListener("load", () => {
+    letter.remove();
+    // The picture itself, blurred, fills what its shape leaves empty (tall box art in a wide frame).
+    if (fill) box.style.setProperty("--art", `url("${src}")`);
+  });
   img.addEventListener("error", () => img.remove());
   img.src = src;
   box.append(letter, img);

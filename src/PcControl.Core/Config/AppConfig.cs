@@ -58,6 +58,15 @@ public sealed record GamesConfig
 
     /// <summary>Start games fullscreen.</summary>
     public bool Rpcs3Fullscreen { get; init; } = true;
+
+    /// <summary>Where PCSX2 is: "auto" (the default), or the path of pcsx2-qt.exe or of its folder.</summary>
+    public string Pcsx2Path { get; init; } = "auto";
+
+    /// <summary>Start PS2 games fullscreen.</summary>
+    public bool Pcsx2Fullscreen { get; init; } = true;
+
+    /// <summary>Download the cover of a PS2 game that has none yet (from a public collection on GitHub) into PCSX2's covers folder.</summary>
+    public bool Pcsx2DownloadCovers { get; init; } = true;
 }
 
 public sealed record CaptureConfig

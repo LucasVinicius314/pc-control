@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using PcControl.Core.Actions;
+using PcControl.Core.Capture;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.UI.WindowsAndMessaging;
@@ -106,7 +107,7 @@ public sealed class WindowsProcessCatalog : IProcessCatalog
                         continue;
                     }
 
-                    result.Add(new RunningApp(process.Id, process.StartTime.Ticks, process.ProcessName, process.MainWindowTitle));
+                    result.Add(new RunningApp(process.Id, process.StartTime.Ticks, process.ProcessName, process.MainWindowTitle, PInvoke.IsIconic(new HWND(process.MainWindowHandle))));
                 }
                 catch (Exception ex) when (ex is Win32Exception or InvalidOperationException or NotSupportedException)
                 {
@@ -157,6 +158,35 @@ public sealed class WindowsProcessCatalog : IProcessCatalog
             catch (Exception ex) when (ex is Win32Exception or InvalidOperationException or NotSupportedException)
             {
                 return process.HasExited ? CloseOutcome.Gone : CloseOutcome.Failed;
+            }
+        }
+    }
+
+    public RawFrame? Preview(RunningApp app, int maxWidth)
+    {
+        ArgumentNullException.ThrowIfNull(app);
+
+        Process process;
+        try
+        {
+            process = Process.GetProcessById(app.Pid);
+        }
+        catch (ArgumentException)
+        {
+            return null;
+        }
+
+        using (process)
+        {
+            try
+            {
+                return process.StartTime.Ticks == app.StartTicks
+                    ? WindowPicture.Capture(new HWND(process.MainWindowHandle), maxWidth)
+                    : null; // the number now belongs to a different program
+            }
+            catch (Exception ex) when (ex is Win32Exception or InvalidOperationException or NotSupportedException)
+            {
+                return null;
             }
         }
     }

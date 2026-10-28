@@ -268,9 +268,34 @@ paths:
         are never sent. Needs the `processKiller` capability.
       responses:
         "200":
-          description: "A list of `{ id, name, title }`."
+          description: "A list of `{ id, name, title, minimized }`."
         "403":
           description: Switched off in the PC's config (`feature_disabled`).
+  /api/processes/{id}/preview:
+    get:
+      summary: A picture of a program's window
+      description: |
+        A JPEG of the window of a program from the latest list, like the thumbnails in Alt+Tab. `width`
+        (160 to 960, default 480) is the largest width wanted. The picture is drawn by the window itself, so
+        it does not matter what is on top of it. Pictures are kept for a few seconds on the PC. Needs the
+        `processKiller` capability, and is refused while the kill switch is on because it shows the screen.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: width
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: A JPEG, not cached.
+        "404":
+          description: "`unknown_process`, or `no_image` when there is nothing to show (a minimised window, or one that cannot be drawn this way)."
+        "409":
+          description: The kill switch is on (`paused`).
   /api/processes/{id}/close:
     post:
       summary: Close a program from the latest list
@@ -320,6 +345,17 @@ paths:
           description: The kill switch is on (`paused`).
         "502":
           description: Windows would not do it (`focus_failed`).
+  /api/couch/controllers:
+    get:
+      summary: The controllers that are connected to the PC
+      description: |
+        For the controller UI's top bar. A list of `{ slot, power, level, percent, charging }`: `power` is
+        `battery`, `wired` or `unknown`; `level` is `empty`, `low`, `medium`, `full` or null; `percent` is the exact
+        charge when Windows says (otherwise null); `charging` is true while it charges. Empty when no controller
+        is connected. Checked by the PC every 30 seconds.
+      responses:
+        "200":
+          description: The list.
   /api/theme:
     get:
       summary: The PC's Windows theme
@@ -334,8 +370,9 @@ paths:
     get:
       summary: The RPCS3 games
       description: |
-        `{ available, reason, games: [{ id, title, serial, source }], recent: [id] }`. `available` is false
-        when RPCS3 was not found (`reason` says why). Ids are opaque; paths never leave the PC.
+        `{ available, reason, games: [{ id, title, serial, source }], recent: [id] }`. `source` is `rpcs3` or
+        `pcsx2`. `available` is false when neither emulator was found (`reason` says why). A game launch that
+        cannot work (for example PCSX2 has no BIOS) is `launch_failed` with a `message` saying why. Ids are opaque; paths never leave the PC.
       responses:
         "200":
           description: The list.

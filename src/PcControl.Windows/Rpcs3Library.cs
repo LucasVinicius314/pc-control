@@ -8,48 +8,37 @@ namespace PcControl.Windows;
 /// The PS3 games RPCS3 knows about, read from its own game list (<c>config/games.yml</c>) and each
 /// game's <c>PARAM.SFO</c>, and started through RPCS3's command line. Nothing here changes RPCS3's files.
 /// </summary>
-public sealed class Rpcs3Library : IGameLibrary
+public sealed class Rpcs3Library : EmulatorLocator, IGameLibrary
 {
     private const long MaxImageBytes = 8 * 1024 * 1024;
 
-    private readonly string _setting;
     private readonly bool _fullscreen;
     private readonly Func<ProcessStartInfo, bool> _start;
-    private readonly Func<IEnumerable<string>> _extraCandidates;
-    private string? _exe;
 
     /// <param name="setting">"auto", or the path of rpcs3.exe or of the folder it is in.</param>
     /// <param name="fullscreen">Start games fullscreen (RPCS3 only honours this when started without its window).</param>
     /// <param name="start">How a process is started; tests pass a fake.</param>
     /// <param name="extraCandidates">More places to look in "auto" mode; tests use this to stay out of the real PC's folders.</param>
     public Rpcs3Library(string setting, bool fullscreen, Func<ProcessStartInfo, bool>? start = null, Func<IEnumerable<string>>? extraCandidates = null)
+        : base(setting, extraCandidates, DefaultCandidates)
     {
-        _setting = string.IsNullOrWhiteSpace(setting) ? "auto" : setting.Trim();
         _fullscreen = fullscreen;
         _start = start ?? StartProcess;
-        _extraCandidates = extraCandidates ?? DefaultCandidates;
     }
+
+    public override string Source => GameSources.Rpcs3;
+
+    public override string ExeName => "rpcs3.exe";
+
+    protected override string DisplayName => "RPCS3";
+
+    protected override string ConfigKey => "rpcs3Path";
+
+    protected override IReadOnlyList<string> ExeNames => [ExeName];
+
+    protected override IReadOnlyList<string> ProcessNames => ["rpcs3"];
 
     public bool Available => FindExe() is not null;
-
-    public string? UnavailableReason =>
-        FindExe() is not null
-            ? null
-            : _setting.Equals("auto", StringComparison.OrdinalIgnoreCase)
-                ? "RPCS3 was not found. Set games.rpcs3Path in config.json to rpcs3.exe or its folder."
-                : $"There is no rpcs3.exe at {_setting}.";
-
-    /// <summary>The path of rpcs3.exe, or null. Looked up again while it is missing, so installing RPCS3 later works.</summary>
-    public string? FindExe()
-    {
-        if (_exe is not null && File.Exists(_exe))
-        {
-            return _exe;
-        }
-
-        _exe = _setting.Equals("auto", StringComparison.OrdinalIgnoreCase) ? Detect() : FromSetting(_setting);
-        return _exe;
-    }
 
     public IReadOnlyList<GameEntry> GetGames()
     {
@@ -117,6 +106,11 @@ public sealed class Rpcs3Library : IGameLibrary
 
         return null;
     }
+
+    public string? LaunchProblem(GameEntry game) => null;
+
+    /// <summary>Nothing to warn about for RPCS3.</summary>
+    public override string? Warning => null;
 
     public bool Launch(GameEntry game)
     {
@@ -187,67 +181,20 @@ public sealed class Rpcs3Library : IGameLibrary
         return null;
     }
 
-    private static string? FromSetting(string setting)
-    {
-        var exe = Directory.Exists(setting) ? Path.Combine(setting, "rpcs3.exe") : setting;
-        return File.Exists(exe) ? Path.GetFullPath(exe) : null;
-    }
-
-    private string? Detect()
-    {
-        // A copy that is running right now is the one the user means.
-        foreach (var process in Process.GetProcessesByName("rpcs3"))
-        {
-            using (process)
-            {
-                try
-                {
-                    var path = process.MainModule?.FileName;
-                    if (path is not null && File.Exists(path))
-                    {
-                        return path;
-                    }
-                }
-                catch (Exception ex) when (ex is Win32Exception or InvalidOperationException)
-                {
-                    // No access to that process; keep looking.
-                }
-            }
-        }
-
-        foreach (var folder in _extraCandidates())
-        {
-            var exe = Path.Combine(folder, "rpcs3.exe");
-            if (File.Exists(exe))
-            {
-                return exe;
-            }
-        }
-
-        return null;
-    }
-
     private static List<string> DefaultCandidates()
     {
         var user = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        var places = new List<string>
-        {
+        List<string> places =
+        [
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "RPCS3"),
             @"C:\RPCS3",
             @"D:\RPCS3",
             Path.Combine(user, "RPCS3"),
             Path.Combine(user, "Documents", "RPCS3"),
-        };
+        ];
 
         // Release builds are unpacked into folders such as "rpcs3-v0.0.37-18022-9c93ec0b_win64_msvc".
-        foreach (var parent in new[] { Path.Combine(user, "Downloads"), Path.Combine(user, "Desktop"), Path.Combine(user, "Documents") })
-        {
-            if (Directory.Exists(parent))
-            {
-                places.AddRange(Directory.EnumerateDirectories(parent, "rpcs3*").OrderByDescending(Directory.GetLastWriteTimeUtc));
-            }
-        }
-
+        places.AddRange(UnpackedFolders("rpcs3*", Path.Combine(user, "Downloads"), Path.Combine(user, "Desktop"), Path.Combine(user, "Documents")));
         return places;
     }
 }

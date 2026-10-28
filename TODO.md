@@ -12,7 +12,7 @@ Things left over, in no particular order. Nothing here is started.
 
 - [ ] **Pause the game while the UI is open over it.** The game still hears the controller's buttons while the overlay is up. (Left out on purpose until the overlay was tested.)
 - [ ] **On-screen keyboard.** There is no text search or typing in the controller UI yet.
-- [ ] **More game sources.** Steam, Epic, GOG, the Xbox app. RPCS3 is the only one now.
+- [ ] **More game sources.** Steam, Epic, GOG, the Xbox app. RPCS3 and PCSX2 are the only ones now.
 - [ ] **A real transparent overlay.** The blurred screenshot is the best a normal WebView2 window allows. Truly see-through needs WebView2's visual hosting (a DirectComposition window), which is a larger piece of work.
 
 ## Task manager

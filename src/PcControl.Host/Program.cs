@@ -141,6 +141,14 @@ internal static class Program
             shortcut.Shortcut,
             shortcut.FromPowerToys ? "read from PowerToys' settings" : "from config or the default");
 
+        var rpcs3Library = new Rpcs3Library(config.Games.Rpcs3Path, config.Games.Rpcs3Fullscreen);
+        var pcsx2Library = new Pcsx2Library(config.Games.Pcsx2Path, config.Games.Pcsx2Fullscreen, fetchCover: config.Games.Pcsx2DownloadCovers ? Pcsx2Library.FetchCoverFromInternet : null);
+        var gamesService = new GamesService(new CompositeGameLibrary(rpcs3Library, pcsx2Library), new JsonGamesStateStore(AppPaths.GamesFile), time);
+        IReadOnlyList<(string, EmulatorSettings)> emulators =
+        [
+            ("RPCS3", new EmulatorSettings(rpcs3Library, gamesService, AppPaths.ConfigFile, "rpcs3Path")),
+            ("PCSX2", new EmulatorSettings(pcsx2Library, gamesService, AppPaths.ConfigFile, "pcsx2Path")),
+        ];
         using var performanceSampler = new PerformanceSampler();
         var performanceService = new PerformanceService(performanceSampler, time);
         var localPairing = new LocalPairing();
@@ -148,13 +156,31 @@ internal static class Program
         var jpegEncoder = new GdiPlusJpegEncoder();
         using var couch = new CouchController(config, localPairing, gdiScreen, jpegEncoder, couchBackdrop);
         using var controllers = new XInputWatcher();
-        if (config.Couch.Enabled && config.Couch.GuideButton)
+        var controllerStatus = new ControllerStatus();
+        if (config.Couch.Enabled)
         {
-            controllers.GuidePressed += couch.Toggle;
+            // The watcher also keeps the controller list (and batteries) for the controller UI's top bar.
+            controllers.ControllersChanged += list =>
+            {
+                controllerStatus.Controllers = list;
+                Log.Information("Controllers: {Controllers}", list.Count == 0 ? "none" : string.Join(", ", list.Select(c => $"{c.Slot} ({c.Power}{(c.Percent is { } p ? $" {p}%" : "")})")));
+            };
+            if (config.Couch.GuideButton)
+            {
+                controllers.GuidePressed += () =>
+                {
+                    Log.Information("Xbox button pressed");
+                    couch.Toggle();
+                };
+            }
+
+            var watching = controllers.Start();
             Log.Information(
-                controllers.Start()
-                    ? "Controller UI: the Xbox button opens and closes it"
-                    : "Controller UI: the controller library is not available, so the Xbox button is not watched");
+                !watching
+                    ? "Controller UI: the controller library is not available, so controllers are not watched"
+                    : config.Couch.GuideButton
+                        ? "Controller UI: the Xbox button opens and closes it"
+                        : "Controller UI: controllers are watched (the Xbox button is off)");
         }
 
         var app = ServerFactory.Build(new ServerDependencies(
@@ -163,10 +189,11 @@ internal static class Program
             new PowerService(new WindowsPowerBackend(), time),
             new ProcessService(new WindowsProcessCatalog(), Environment.ProcessId),
             new WindowsThemeProvider(),
-            new GamesService(new Rpcs3Library(config.Games.Rpcs3Path, config.Games.Rpcs3Fullscreen), new JsonGamesStateStore(AppPaths.GamesFile), time),
+            gamesService,
             localPairing,
             couchBackdrop,
-            performanceService));
+            performanceService,
+            controllerStatus));
 
         try
         {
@@ -194,7 +221,7 @@ internal static class Program
             couch.Show();
         }
 
-        using (var tray = new TrayApplicationContext(config, pins, registry, state, connections, config.Couch.Enabled ? couch : null))
+        using (var tray = new TrayApplicationContext(config, pins, registry, state, connections, config.Couch.Enabled ? couch : null, emulators))
         {
             Application.Run(tray);
         }

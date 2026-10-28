@@ -21,6 +21,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
     private readonly ToolStripMenuItem _startupItem = new("Start with Windows");
     private readonly PcControl.Windows.StartupService _startup = new();
     private MainForm? _window;
+    private readonly IReadOnlyList<(string Title, EmulatorSettings Settings)>? _emulators;
 
     public TrayApplicationContext(
         AppConfig config,
@@ -28,8 +29,10 @@ internal sealed class TrayApplicationContext : ApplicationContext
         DeviceRegistry registry,
         RemoteControlState state,
         DeviceConnections connections,
-        Couch.CouchController? couch = null)
+        Couch.CouchController? couch = null,
+        IReadOnlyList<(string Title, EmulatorSettings Settings)>? emulators = null)
     {
+        _emulators = emulators;
         _config = config;
         _pins = pins;
         _registry = registry;
@@ -79,7 +82,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
     {
         if (_window is not { IsDisposed: false })
         {
-            _window = new MainForm(_pins, _registry, _connections, LanAddresses.Get(), _config.Port);
+            _window = new MainForm(_pins, _registry, _connections, LanAddresses.Get(), _config.Port, _emulators);
             _window.FormClosed += (_, _) => _window = null;
             _window.Show();
         }

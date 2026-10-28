@@ -95,6 +95,50 @@ public class GameApiTests
     }
 
     [Fact]
+    public async Task WhenTheEmulatorCannotRunIt_TheAnswerSaysWhy_AndNothingStarts()
+    {
+        await using var server = await TestServer.StartAsync();
+        await server.PairAsync();
+        server.GameLibrary.Problem = "PCSX2 has no PS2 BIOS.";
+        var list = await server.Http.GetFromJsonAsync<JsonElement>("/api/games");
+        var id = list.GetProperty("games")[0].GetProperty("id").GetString();
+
+        var response = await server.Http.PostAsync($"/api/games/{id}/launch", null);
+
+        Assert.Equal(HttpStatusCode.BadGateway, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("PCSX2 has no PS2 BIOS.", body.GetProperty("message").GetString());
+        Assert.Empty(server.GameLibrary.Launched);
+    }
+
+    [Fact]
+    public async Task EachGame_SaysWhichEmulatorItBelongsTo()
+    {
+        await using var server = await TestServer.StartAsync();
+        await server.PairAsync();
+        server.GameLibrary.Games = [GameEntry.Create("First", "S1", @"C:\r\a", "rpcs3"), GameEntry.Create("Second", "S2", @"C:\p\b.iso", "pcsx2")];
+
+        var list = await server.Http.GetFromJsonAsync<JsonElement>("/api/games");
+
+        var sources = list.GetProperty("games").EnumerateArray().Select(g => g.GetProperty("source").GetString()).Order().ToList();
+        Assert.Equal(["pcsx2", "rpcs3"], sources);
+    }
+
+    [Fact]
+    public async Task ACoverThatIsAJpeg_IsServedAsOne()
+    {
+        await using var server = await TestServer.StartAsync();
+        await server.PairAsync();
+        server.GameLibrary.Image = [0xFF, 0xD8, 0xFF, 0xE0, 0, 0];
+        var list = await server.Http.GetFromJsonAsync<JsonElement>("/api/games");
+        var id = list.GetProperty("games")[0].GetProperty("id").GetString();
+
+        var cover = await server.Http.GetAsync($"/api/games/{id}/cover");
+
+        Assert.Equal("image/jpeg", cover.Content.Headers.ContentType?.MediaType);
+    }
+
+    [Fact]
     public async Task WhilePaused_NoGameStarts_ButTheListStillLoads()
     {
         await using var server = await TestServer.StartAsync();

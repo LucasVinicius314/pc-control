@@ -1,6 +1,7 @@
 using PcControl.Core.Capture;
 using PcControl.Core.Config;
 using PcControl.Core.Display;
+using PcControl.Core.Input;
 using PcControl.Core.Pairing;
 using PcControl.Core.Protocol;
 using PcControl.Core.Theme;
@@ -78,6 +79,16 @@ internal static class ApiEndpoints
             context.Response.Headers.CacheControl = "no-store";
             return Results.File(jpeg, "image/jpeg");
         });
+
+        secured.MapGet("/couch/controllers", (ControllerStatus controllers) =>
+            Results.Json(controllers.Controllers.Select(c => new
+            {
+                slot = c.Slot,
+                power = c.Power.ToString().ToLowerInvariant(),
+                level = c.Level?.ToString().ToLowerInvariant(),
+                percent = c.Percent,
+                charging = c.Charging,
+            })));
 
         secured.MapGet("/dpi", GetDpi);
         secured.MapPost("/dpi/toggle", ToggleDpi);

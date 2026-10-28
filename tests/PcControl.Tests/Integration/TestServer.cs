@@ -51,6 +51,7 @@ internal sealed class TestServer : IAsyncDisposable
         Local = localPairing;
         Backdrop = backdrop;
         Performance = performance;
+        Controllers = deps.Controllers;
 
         var address = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.First();
         Port = new Uri(address.Replace("[::]", "127.0.0.1", StringComparison.Ordinal)).Port;
@@ -85,6 +86,8 @@ internal sealed class TestServer : IAsyncDisposable
     internal CouchBackdrop Backdrop { get; }
 
     public FakePerformance Performance { get; }
+
+    public ControllerStatus Controllers { get; }
 
     /// <summary>The text of PowerToys' settings file as the server will read it; null means PowerToys is not installed.</summary>
     public PowerToysSettingsHolder PowerToys { get; }
@@ -154,6 +157,7 @@ internal sealed class TestServer : IAsyncDisposable
         var localPairing = new LocalPairing();
         var backdrop = new CouchBackdrop();
         var performance = new FakePerformance();
+        var controllerStatus = new ControllerStatus();
         var urls = new FakeUrlOpener();
         var powerBackend = new FakePowerBackend();
         var processes = new FakeProcessCatalog
@@ -172,7 +176,8 @@ internal sealed class TestServer : IAsyncDisposable
             new GamesService(gameLibrary, new MemoryGamesStore(), time, cacheLifetime: TimeSpan.Zero),
             localPairing,
             backdrop,
-            new PerformanceService(performance, time, TimeSpan.Zero));
+            new PerformanceService(performance, time, TimeSpan.Zero),
+            controllerStatus);
         var app = ServerFactory.Build(deps);
         await app.StartAsync();
         return new TestServer(app, deps, injector, screen, scale, catalog, appsStore, powerToysSettings, urls, powerBackend, processes, theme, gameLibrary, localPairing, backdrop, performance);

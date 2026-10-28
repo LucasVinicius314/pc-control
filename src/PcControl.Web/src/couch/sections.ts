@@ -16,8 +16,8 @@ export interface Shell {
   toast: (text: string) => void;
   /** Hide the controller UI, for example after a game started so it can be seen. */
   hide: () => void;
-  /** Show a picture behind everything (a game's background), or none. */
-  backdrop: (url: string | null) => void;
+  /** Show a picture behind everything (a game's background), or none. `soft` blurs it, for box art rather than a wide background. */
+  backdrop: (url: string | null, soft?: boolean) => void;
   pressKey: (code: string) => void;
   /** Read the current screen again, keeping the focus about where it was. */
   refresh: () => void;
@@ -61,12 +61,18 @@ const firstItem = (root: HTMLElement): HTMLElement | null => root.querySelector<
 
 // ---- games ---------------------------------------------------------------------------------------
 
+/** The emulators games come from, in the order their shelves are shown. `tall` is for box art (PS2); the rest is wide (PS3 icons). */
+const GAME_SOURCES = [
+  { id: "rpcs3", name: "RPCS3", tall: false },
+  { id: "pcsx2", name: "PCSX2", tall: true },
+];
+
 export function gamesSection(shell: Shell): Section {
   const s = section("games", "Games", "gamepad", [A_SELECT, { button: "B", label: "Close" }]);
 
-  const card = (game: { id: string; title: string }): HTMLElement => {
+  const card = (game: { id: string; title: string; serial: string; source: string }): HTMLElement => {
     const c = el("div", "card game");
-    c.append(cover(`/api/games/${game.id}/cover`, game.title), el("div", "card-title", game.title));
+    c.append(cover(`/api/games/${game.id}/cover`, game.title, "cover", true), el("div", "card-name", game.title), el("div", "card-sub", game.serial));
     return makeItem(c, {
       accept: async () => {
         shell.toast(`Starting ${game.title}…`);
@@ -77,7 +83,7 @@ export function gamesSection(shell: Shell): Section {
           shell.toast(launchFailureMessage(error, game.title));
         }
       },
-      focus: () => shell.backdrop(`/api/games/${game.id}/background`),
+      focus: () => shell.backdrop(`/api/games/${game.id}/background`, game.source !== "rpcs3"),
       hints: [{ button: "A", label: "Play" }, { button: "B", label: "Close" }],
     });
   };
@@ -90,7 +96,7 @@ export function gamesSection(shell: Shell): Section {
         return null;
       }
       if (data.games.length === 0) {
-        s.fill([message("No games yet", "Add games in RPCS3 and they will show up here.")]);
+        s.fill([message("No games yet", "Add games in RPCS3 or PCSX2 and they will show up here.")]);
         return null;
       }
 
@@ -98,7 +104,19 @@ export function gamesSection(shell: Shell): Section {
       const recent = data.recent.map((id) => byId.get(id)).filter((g) => g !== undefined);
       const nodes: HTMLElement[] = [];
       if (recent.length > 0) nodes.push(heading("Continue playing"), shelf(...recent.slice(0, 6).map(card)));
-      nodes.push(heading("RPCS3"), shelf(...data.games.map(card)));
+      // One shelf per emulator, in a fixed order; a source this page does not know about goes last, under its own name.
+      const known = new Set(GAME_SOURCES.map((g) => g.id));
+      const groups = [
+        ...GAME_SOURCES.map((g) => ({ name: g.name, tall: g.tall, games: data.games.filter((x) => x.source === g.id) })),
+        ...[...new Set(data.games.filter((x) => !known.has(x.source)).map((x) => x.source))].map((id) => ({ name: id.toUpperCase(), tall: false, games: data.games.filter((x) => x.source === id) })),
+      ];
+      for (const group of groups) {
+        if (group.games.length > 0) {
+          const row = shelf(...group.games.map(card));
+          row.classList.add("games", group.tall ? "tall" : "wide");
+          nodes.push(heading(group.name), row);
+        }
+      }
       s.fill(nodes);
       return firstItem(s.element);
     } catch (error) {
@@ -230,9 +248,23 @@ export function mediaSection(shell: Shell): Section {
 
 // ---- running programs ----------------------------------------------------------------------------
 
+const RUNNING_VIEW_KEY = "pc-control.couch.runningView";
+
+type RunningView = "windows" | "list";
+
+function loadRunningView(): RunningView {
+  try {
+    return localStorage.getItem(RUNNING_VIEW_KEY) === "list" ? "list" : "windows";
+  } catch {
+    return "windows";
+  }
+}
+
+/** The running programs, as windows with their pictures (like Alt+Tab) or as a plain list. */
 export function runningSection(shell: Shell): Section {
   const s = section("running", "Running", "window", [A_SELECT, { button: "B", label: "Close" }]);
   const gate = new ConfirmGate();
+  let view = loadRunningView();
 
   const load = async (): Promise<HTMLElement | null> => {
     try {
@@ -242,9 +274,20 @@ export function runningSection(shell: Shell): Section {
         return null;
       }
 
+      const switchHint: Hint = { button: "Start", label: view === "windows" ? "List view" : "Window view" };
+      // One stamp per load, so the pictures are fresh each time this screen is shown.
+      const stamp = Date.now();
+
       const rows = items.map((item) => {
-        const row = el("div", "row");
-        row.append(el("div", "row-title", item.title), el("div", "row-sub", item.name));
+        const previewUrl = `/api/processes/${item.id}/preview?t=${stamp}`;
+        const row = el("div", view === "windows" ? "card win" : "row");
+        if (view === "windows") {
+          const shot = cover(previewUrl, item.name, "cover", true);
+          if (item.minimized) shot.append(el("span", "win-badge", "Minimized"));
+          row.append(shot, el("div", "card-name", item.title), el("div", "card-sub", item.name));
+        } else {
+          row.append(el("div", "row-title", item.title), el("div", "row-sub", item.name));
+        }
         return makeItem(row, {
           accept: async () => {
             try {
@@ -276,12 +319,22 @@ export function runningSection(shell: Shell): Section {
             }
             window.setTimeout(() => void s.show(), 800);
           },
-          hints: [{ button: "A", label: "Switch to" }, { button: "X", label: "Close" }, { button: "Y", label: "Force close" }, { button: "B", label: "Close menu" }],
+          // The focused window's picture, blurred, behind the screen.
+          focus: () => shell.backdrop(view === "windows" && !item.minimized ? previewUrl : null, true),
+          hints: [{ button: "A", label: "Switch to" }, { button: "X", label: "Close" }, { button: "Y", label: "Force close" }, switchHint, { button: "B", label: "Close menu" }],
         });
       });
-      const list = el("div", "list");
-      list.append(...rows);
-      s.fill([heading("Open programs"), list]);
+
+      if (view === "windows") {
+        const grid = shelf(...rows);
+        grid.classList.add("windows");
+        s.fill([heading("Open windows"), grid]);
+      } else {
+        const list = el("div", "list");
+        list.append(...rows);
+        s.fill([heading("Open programs"), list]);
+      }
+      s.hints = [A_SELECT, switchHint, { button: "B", label: "Close" }];
       return rows[0] ?? null;
     } catch (error) {
       s.fill([message("Could not load the programs", error instanceof ApiError ? error.code : undefined)]);
@@ -290,6 +343,15 @@ export function runningSection(shell: Shell): Section {
   };
 
   s.show = load;
+  s.menu = () => {
+    view = view === "windows" ? "list" : "windows";
+    try {
+      localStorage.setItem(RUNNING_VIEW_KEY, view);
+    } catch {
+      // Not remembered; the next start shows windows again.
+    }
+    shell.refresh();
+  };
   return s;
 }
 

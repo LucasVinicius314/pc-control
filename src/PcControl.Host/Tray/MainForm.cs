@@ -40,13 +40,18 @@ internal sealed class MainForm : Form
     private readonly Button _removeButton = new() { Text = "Remove selected", AutoSize = true, Enabled = false };
     private readonly System.Windows.Forms.Timer _tick = new() { Interval = 1000 };
 
+    private readonly IReadOnlyList<(string Title, EmulatorSettings Settings)> _emulators;
+    private readonly List<Action> _refreshEmulators = [];
+
     public MainForm(
         PinService pins,
         DeviceRegistry registry,
         DeviceConnections connections,
         IReadOnlyList<IPAddress> addresses,
-        int port)
+        int port,
+        IReadOnlyList<(string Title, EmulatorSettings Settings)>? emulators = null)
     {
+        _emulators = emulators ?? [];
         _pins = pins;
         _registry = registry;
         _connections = connections;
@@ -60,13 +65,19 @@ internal sealed class MainForm : Form
         MinimizeBox = true;
         StartPosition = FormStartPosition.CenterScreen;
         AutoScaleMode = AutoScaleMode.Dpi;
-        ClientSize = new Size(420, 640);
+        ClientSize = new Size(420, 640 + (130 * _emulators.Count));
 
         BuildPairingPanel();
         BuildPhonesPanel();
 
+        BuildEmulatorPanels();
+
         _root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         _root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        foreach (var _ in _emulators)
+        {
+            _root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        }
         Controls.Add(_root);
 
         _pairButton.Click += (_, _) => ShowPairing(issueNew: true);
@@ -134,6 +145,101 @@ internal sealed class MainForm : Form
 
         _pairingPanel.Controls.Add(buttons);
         _root.Controls.Add(_pairingPanel, 0, 0);
+    }
+
+    /// <summary>One section per emulator: what was found, and a way to point at it or let the app find it.</summary>
+    private void BuildEmulatorPanels()
+    {
+        var row = 2;
+        foreach (var (title, settings) in _emulators)
+        {
+            _root.RowCount = row + 1;
+            _root.Controls.Add(BuildEmulatorPanel(title, settings), 0, row);
+            row++;
+        }
+
+        Load += (_, _) =>
+        {
+            foreach (var refresh in _refreshEmulators)
+            {
+                refresh();
+            }
+        };
+    }
+
+    private FlowLayoutPanel BuildEmulatorPanel(string name, EmulatorSettings settings)
+    {
+        var heading = new Label { Text = $"{name} (for the games screen)", AutoSize = true, Font = new Font(SystemFonts.DefaultFont, FontStyle.Bold), Padding = new Padding(0, 8, 0, 4) };
+        var status = new Label { AutoSize = true, MaximumSize = new Size(390, 0) };
+        var mode = new Label { AutoSize = true, ForeColor = SystemColors.GrayText };
+        var warning = new Label { AutoSize = true, MaximumSize = new Size(390, 0), ForeColor = Color.DarkOrange };
+
+        void Refresh()
+        {
+            var current = settings.GetStatus();
+            if (current.ExePath is { } exe)
+            {
+                status.Text = $"Found: {exe}{Environment.NewLine}{current.GameCount} game{(current.GameCount == 1 ? string.Empty : "s")} in its list";
+                status.ForeColor = SystemColors.ControlText;
+            }
+            else
+            {
+                status.Text = "Not found. " + (current.Automatic
+                    ? $"Choose {settings.ExeName}, or install {name} and look again."
+                    : $"There is no {settings.ExeName} at {current.Setting}.");
+                status.ForeColor = Color.Firebrick;
+            }
+
+            mode.Text = current.Automatic ? "Automatic detection" : "Set by you";
+            warning.Text = current.Warning ?? string.Empty;
+            warning.Visible = current.Warning is not null;
+        }
+
+        void Apply(string? problem)
+        {
+            if (problem is not null)
+            {
+                MessageBox.Show(this, problem, "PC Control", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+
+            Refresh();
+        }
+
+        var browse = new Button { Text = $"Choose {settings.ExeName}…", AutoSize = true };
+        browse.Click += (_, _) =>
+        {
+            using var dialog = new OpenFileDialog
+            {
+                Title = $"Choose {settings.ExeName}",
+                Filter = $"{name} ({settings.ExeName})|{settings.ExeName}|Programs (*.exe)|*.exe",
+                CheckFileExists = true,
+            };
+            if (settings.GetStatus().ExePath is { } current)
+            {
+                dialog.InitialDirectory = Path.GetDirectoryName(current);
+            }
+
+            if (dialog.ShowDialog(this) == DialogResult.OK)
+            {
+                Apply(settings.Apply(dialog.FileName));
+            }
+        };
+        var automatic = new Button { Text = "Find it automatically", AutoSize = true };
+        automatic.Click += (_, _) => Apply(settings.Apply(EmulatorSettings.Automatic));
+        var again = new Button { Text = "Look again", AutoSize = true };
+        again.Click += (_, _) =>
+        {
+            settings.Rescan();
+            Refresh();
+        };
+
+        var buttons = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.LeftToRight, WrapContents = true, MaximumSize = new Size(390, 0) };
+        buttons.Controls.AddRange([browse, automatic, again]);
+
+        var panel = new FlowLayoutPanel { FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoSize = true, Dock = DockStyle.Top };
+        panel.Controls.AddRange([heading, status, mode, warning, buttons]);
+        _refreshEmulators.Add(Refresh);
+        return panel;
     }
 
     private void BuildPhonesPanel()

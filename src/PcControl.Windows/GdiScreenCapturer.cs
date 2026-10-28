@@ -129,7 +129,7 @@ public sealed class GdiScreenCapturer : IScreenCapturer
             ROP_CODE.SRCCOPY | ROP_CODE.CAPTUREBLT);
     }
 
-    private static RawFrame? ReadPixels(HDC memory, HBITMAP bitmap, int width, int height)
+    internal static RawFrame? ReadPixels(HDC memory, HBITMAP bitmap, int width, int height)
     {
         var pixels = new byte[width * height * 4];
         var info = new BITMAPINFO

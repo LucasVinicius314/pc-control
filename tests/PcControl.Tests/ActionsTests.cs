@@ -1,5 +1,7 @@
 using Microsoft.Extensions.Time.Testing;
 using PcControl.Core.Actions;
+using PcControl.Core.Capture;
+using PcControl.Core.Input;
 
 namespace PcControl.Tests;
 
@@ -51,7 +53,18 @@ public sealed class FakeProcessCatalog : IProcessCatalog
 
     public CloseOutcome Result { get; set; } = CloseOutcome.Ok;
 
+    /// <summary>The window pictures to hand out, by process id; a program that is not here has none.</summary>
+    public Dictionary<int, RawFrame> Frames { get; } = [];
+
+    public List<(int Pid, int Width)> Previewed { get; } = [];
+
     public IReadOnlyList<RunningApp> List() => Apps;
+
+    public RawFrame? Preview(RunningApp app, int maxWidth)
+    {
+        Previewed.Add((app.Pid, maxWidth));
+        return Frames.GetValueOrDefault(app.Pid);
+    }
 
     public CloseOutcome Focus(RunningApp app)
     {
@@ -63,6 +76,162 @@ public sealed class FakeProcessCatalog : IProcessCatalog
     {
         Closed.Add((app.Pid, force));
         return Result;
+    }
+}
+
+public class ProcessPreviewTests
+{
+    private static RawFrame Frame(byte value) => new(2, 2, new byte[16].Select(_ => value).ToArray());
+
+    private static (ProcessService Service, FakeProcessCatalog Catalog, string Id) Make(TimeProvider? time = null)
+    {
+        var catalog = new FakeProcessCatalog { Apps = [new RunningApp(100, 1, "notepad", "Untitled - Notepad"), new RunningApp(200, 2, "chrome", "Anime", Minimized: true)] };
+        catalog.Frames[100] = Frame(7);
+        var service = new ProcessService(catalog, ownPid: 999, time);
+        var id = service.GetList().Single(p => p.Name == "notepad").Id;
+        return (service, catalog, id);
+    }
+
+    [Fact]
+    public void TheList_SaysWhichWindowsAreMinimised()
+    {
+        var (service, _, _) = Make();
+
+        var list = service.GetList();
+
+        Assert.False(list.Single(p => p.Name == "notepad").Minimized);
+        Assert.True(list.Single(p => p.Name == "chrome").Minimized);
+    }
+
+    [Fact]
+    public void APreview_IsOnlyGivenForAnIdFromTheLatestList()
+    {
+        var (service, catalog, _) = Make();
+
+        Assert.Equal(ProcessOutcome.Unknown, service.Preview("0000000000000000", 480).Outcome);
+        Assert.Empty(catalog.Previewed);
+    }
+
+    [Fact]
+    public void AProgramWithNothingToShow_IsOkWithoutAFrame()
+    {
+        var (service, _, _) = Make();
+        var chrome = service.GetList().Single(p => p.Name == "chrome").Id;
+
+        var (outcome, frame) = service.Preview(chrome, 480);
+
+        Assert.Equal(ProcessOutcome.Ok, outcome);
+        Assert.Null(frame);
+    }
+
+    [Fact]
+    public void APicture_IsReusedBriefly_ThenDrawnAgain()
+    {
+        var time = new Microsoft.Extensions.Time.Testing.FakeTimeProvider();
+        var (service, catalog, id) = Make(time);
+
+        var first = service.Preview(id, 480).Frame;
+        var second = service.Preview(id, 480).Frame;
+        Assert.NotNull(first);
+        Assert.Same(first, second);
+        Assert.Single(catalog.Previewed);
+
+        time.Advance(TimeSpan.FromSeconds(4));
+        service.Preview(id, 480);
+        Assert.Equal(2, catalog.Previewed.Count);
+    }
+
+    [Fact]
+    public void ADifferentWidth_IsADifferentPicture()
+    {
+        var (service, catalog, id) = Make();
+
+        service.Preview(id, 320);
+        service.Preview(id, 640);
+
+        Assert.Equal([(100, 320), (100, 640)], catalog.Previewed);
+    }
+}
+
+public class ControllerInfoTests
+{
+    [Theory]
+    [InlineData(1, 0, ControllerPower.Wired, null)]
+    [InlineData(2, 3, ControllerPower.Battery, BatteryLevel.Full)]
+    [InlineData(3, 2, ControllerPower.Battery, BatteryLevel.Medium)]
+    [InlineData(3, 1, ControllerPower.Battery, BatteryLevel.Low)]
+    [InlineData(3, 0, ControllerPower.Battery, BatteryLevel.Empty)]
+    [InlineData(3, 9, ControllerPower.Battery, null)]
+    [InlineData(255, 3, ControllerPower.Unknown, null)]
+    [InlineData(0, 3, ControllerPower.Unknown, null)]
+    public void WhatXInputReports_BecomesPowerAndLevel(byte type, byte level, ControllerPower power, BatteryLevel? expected)
+    {
+        var info = ControllerInfo.FromXInput(2, type, level);
+
+        Assert.Equal(2, info.Slot);
+        Assert.Equal(power, info.Power);
+        Assert.Equal(expected, info.Level);
+    }
+}
+
+public class ControllerBatteryReadingTests
+{
+    private static readonly ControllerInfo Unknown = new(0, ControllerPower.Unknown, null);
+
+    [Theory]
+    [InlineData(1000, 1000, 100, BatteryLevel.Full)]
+    [InlineData(700, 1000, 70, BatteryLevel.Full)]
+    [InlineData(500, 1000, 50, BatteryLevel.Medium)]
+    [InlineData(200, 1000, 20, BatteryLevel.Low)]
+    [InlineData(100, 1000, 10, BatteryLevel.Empty)]
+    [InlineData(0, 1000, 0, BatteryLevel.Empty)]
+    [InlineData(1500, 1000, 100, BatteryLevel.Full)]
+    public void TheCharge_BecomesAPercentAndALevel(int remaining, int full, int percent, BatteryLevel level)
+    {
+        var info = ControllerInfo.FromReading(0, new BatteryReading(true, false, remaining, full), Unknown);
+
+        Assert.Equal(ControllerPower.Battery, info.Power);
+        Assert.Equal(percent, info.Percent);
+        Assert.Equal(level, info.Level);
+        Assert.False(info.Charging);
+    }
+
+    [Fact]
+    public void AControllerThatIsCharging_SaysSo()
+    {
+        var info = ControllerInfo.FromReading(1, new BatteryReading(true, true, 400, 1000), Unknown);
+
+        Assert.True(info.Charging);
+        Assert.Equal(1, info.Slot);
+    }
+
+    [Fact]
+    public void AControllerWithoutABattery_IsOnACable()
+    {
+        var info = ControllerInfo.FromReading(0, new BatteryReading(false, false, null, null), Unknown);
+
+        Assert.Equal(ControllerPower.Wired, info.Power);
+        Assert.Null(info.Percent);
+    }
+
+    [Fact]
+    public void WithoutAReport_WhatXInputSaidStands()
+    {
+        var xinput = new ControllerInfo(0, ControllerPower.Battery, BatteryLevel.Medium);
+
+        Assert.Same(xinput, ControllerInfo.FromReading(0, null, xinput));
+    }
+
+    [Fact]
+    public void AReportWithoutAFullCharge_HasNoPercent_AndKeepsTheXInputLevel()
+    {
+        var xinput = new ControllerInfo(0, ControllerPower.Battery, BatteryLevel.Low);
+
+        var info = ControllerInfo.FromReading(0, new BatteryReading(true, false, 300, null), xinput);
+
+        Assert.Null(info.Percent);
+        Assert.Equal(BatteryLevel.Low, info.Level);
+        Assert.Equal(ControllerPower.Battery, info.Power);
     }
 }
 

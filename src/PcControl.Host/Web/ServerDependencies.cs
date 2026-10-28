@@ -32,4 +32,5 @@ internal sealed record ServerDependencies(
     GamesService Games,
     LocalPairing Local,
     CouchBackdrop Backdrop,
-    PerformanceService Performance);
+    PerformanceService Performance,
+    ControllerStatus Controllers);

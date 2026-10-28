@@ -9,6 +9,8 @@ namespace PcControl.Tests;
 
 public sealed class FakeGameLibrary : IGameLibrary
 {
+    public string Source { get; set; } = GameSources.Rpcs3;
+
     public bool Available { get; set; } = true;
 
     public string? UnavailableReason { get; set; }
@@ -21,6 +23,11 @@ public sealed class FakeGameLibrary : IGameLibrary
     ];
 
     public bool LaunchSucceeds { get; set; } = true;
+
+    /// <summary>When set, the library reports that games cannot start, with this sentence.</summary>
+    public string? Problem { get; set; }
+
+    public string? LaunchProblem(GameEntry game) => Problem;
 
     public List<string> Launched { get; } = [];
 

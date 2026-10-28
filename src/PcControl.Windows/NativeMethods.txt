@@ -81,3 +81,5 @@ GlobalMemoryStatusEx
 MEMORYSTATUSEX
 GetProcessIoCounters
 IO_COUNTERS
+PrintWindow
+GetWindowRect

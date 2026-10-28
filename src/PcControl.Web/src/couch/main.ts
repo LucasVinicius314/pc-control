@@ -5,6 +5,8 @@ import { InputChannel } from "../input";
 import { Link } from "../socket";
 import { applyTheme, DEFAULT_THEME, loadCachedTheme } from "../theme";
 import { pickNext, type Direction } from "./nav";
+import { glideIntoView, glideTo, scrollersAbove } from "./smoothscroll";
+import { renderControllers } from "./controllers";
 import { Sounds } from "./sounds";
 import { actionForKey, PadReader, StepLimiter, type PadAction } from "./pad";
 import { appsSection, gamesSection, mediaSection, pcSection, performanceSection, runningSection, type Section, type Shell } from "./sections";
@@ -98,13 +100,14 @@ async function start(): Promise<void> {
   const backdrop = el("div", "backdrop");
   const tabs = el("nav", "tabs");
   const clock = el("div", "clock");
+  const pads = el("div", "pads");
   const stage = el("main", "stage");
   const footer = el("footer", "hints");
   const toastBox = el("div", "toast");
   toastBox.hidden = true;
   const frame = el("div", "couch");
   frame.append(screenPicture, backdrop, el("div", "footer-fade"), el("header", "topbar"), stage, footer, toastBox);
-  frame.querySelector(".topbar")!.append(tabs, clock);
+  frame.querySelector(".topbar")!.append(tabs, pads, clock);
   root.replaceChildren(frame);
 
   let toastTimer = 0;
@@ -119,15 +122,24 @@ async function start(): Promise<void> {
       if (GAME_HOST) hideWindow();
       else shell.toast("(In a browser the menu would close here.)");
     },
-    backdrop: (url) => {
+    backdrop: (url, soft = false) => {
       // Fade to the new picture; a missing one just leaves the plain background.
       backdrop.style.setProperty("background-image", url ? `url("${url}")` : "none");
       backdrop.classList.toggle("on", url !== null);
+      backdrop.classList.toggle("soft", soft);
     },
     pressKey: (code) => input.key(code, "press"),
     refresh: () => void showSection(sections.indexOf(current!), focused ? focusIndex() : 0),
     focus: (item) => setFocus(item),
   };
+
+  // Connected controllers and their batteries; the PC checks them every half minute, so a look every 15 seconds is plenty.
+  const refreshPads = (): void => {
+    api.controllers().then((list) => renderControllers(pads, list)).catch(() => pads.replaceChildren());
+  };
+  refreshPads();
+  window.setTimeout(refreshPads, 4000); // a battery reading can take a few seconds to arrive after the PC starts watching
+  window.setInterval(refreshPads, 15000);
 
   const sections: Section[] = [];
   if (capabilities["gameLauncher"] !== false) sections.push(gamesSection(shell));
@@ -155,13 +167,7 @@ async function start(): Promise<void> {
   const focusIndex = (): number => Math.max(0, items().indexOf(focused!));
 
   /** The nearest ancestor that scrolls: the screen itself, or a list inside it. */
-  const scrollerOf = (item: HTMLElement): HTMLElement | null => {
-    for (let e = item.parentElement; e && e !== frame; e = e.parentElement) {
-      const overflow = getComputedStyle(e).overflowY;
-      if ((overflow === "auto" || overflow === "scroll") && e.scrollHeight > e.clientHeight) return e;
-    }
-    return current?.element ?? null;
-  };
+  const scrollerOf = (item: HTMLElement): HTMLElement | null => scrollersAbove(item, frame)[0] ?? current?.element ?? null;
 
   const setFocus = (item: HTMLElement | null): void => {
     focused?.classList.remove("focused");
@@ -171,9 +177,9 @@ async function start(): Promise<void> {
       const container = scrollerOf(item);
       if (items()[0] === item && container) {
         // The very first item: go all the way to the top, so the screen's title is in view too.
-        container.scrollTo({ top: 0, behavior: "smooth" });
+        glideTo(container, 0);
       } else {
-        item.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
+        glideIntoView(item, frame);
       }
       handlersOf(item).focus?.();
     } else {

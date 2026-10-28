@@ -52,6 +52,18 @@ export interface ProcessItem {
   id: string;
   name: string;
   title: string;
+  /** The window is minimised, so it has no picture to show. */
+  minimized?: boolean;
+}
+
+/** A connected controller and what it runs on. `level` is only there for a battery. */
+export interface ControllerItem {
+  slot: number;
+  power: "wired" | "battery" | "unknown";
+  level?: "empty" | "low" | "medium" | "full" | null;
+  /** The exact charge, when Windows says. */
+  percent?: number | null;
+  charging?: boolean;
 }
 
 export interface PendingPower {
@@ -157,6 +169,7 @@ export const api = {
     request<{ action: string; delaySeconds: number }>("POST", "/api/power", { action, confirm }),
   cancelPower: () => request<void>("DELETE", "/api/power/pending"),
   processes: () => request<ProcessItem[]>("GET", "/api/processes"),
+  controllers: () => request<ControllerItem[]>("GET", "/api/couch/controllers"),
   focusProcess: (id: string) => request<{ focused: boolean; title: string }>("POST", `/api/processes/${id}/focus`),
   closeProcess: (id: string, force: boolean) =>
     request<{ closed: boolean; title: string }>("POST", `/api/processes/${id}/close`, { force }),

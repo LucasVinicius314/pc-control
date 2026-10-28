@@ -9,7 +9,7 @@ close), open a link, a media remote, screen previews and screenshot, display sca
 confirmation and a cancellable countdown, and a small task manager. The page follows your Windows theme.
 
 **On the PC:** press the Xbox button on a controller for a Big-Picture-style screen with your RPCS3 games,
-apps, media remote, running programs, performance, and power. Right-click the tray icon for
+apps, media remote, running programs, performance, and power. Games come from RPCS3 and PCSX2. Right-click the tray icon for
 **Start with Windows** and **Open controller UI**.
 
 What is left is in [TODO.md](TODO.md). How the parts work:

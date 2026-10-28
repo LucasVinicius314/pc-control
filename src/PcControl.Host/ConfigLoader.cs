@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using PcControl.Core.Config;
 
 namespace PcControl.Host;
@@ -51,5 +52,27 @@ internal static class ConfigLoader
         }
 
         return config;
+    }
+
+    /// <summary>
+    /// Sets one value under <c>games</c> (for example <c>rpcs3Path</c>) in the config file and leaves everything else as it is. (Comments in the
+    /// file are not kept.) Written to a temporary file first, so a crash cannot leave half a config.
+    /// </summary>
+    public static void SetGamesValue(string path, string key, string value)
+    {
+        JsonObject root = new();
+        if (File.Exists(path))
+        {
+            var options = new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true };
+            root = JsonNode.Parse(File.ReadAllText(path), documentOptions: options) as JsonObject ?? new JsonObject();
+        }
+
+        var games = root["games"] as JsonObject ?? new JsonObject();
+        root["games"] = games;
+        games[key] = value;
+
+        var temp = path + ".tmp";
+        File.WriteAllText(temp, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+        File.Move(temp, path, overwrite: true);
     }
 }

@@ -6,10 +6,21 @@ namespace PcControl.Core.Games;
 /// <param name="Id">A short hash of <paramref name="LaunchPath"/>; the only handle a client gets.</param>
 /// <param name="Serial">The game's product code, for example BLUS30457.</param>
 /// <param name="LaunchPath">The game's folder on the PC. Never sent to a client.</param>
-public sealed record GameEntry(string Id, string Title, string Serial, string LaunchPath)
+/// <param name="Source">Which emulator the game belongs to: "rpcs3" or "pcsx2".</param>
+public sealed record GameEntry(string Id, string Title, string Serial, string LaunchPath, string Source = GameSources.Rpcs3)
 {
-    public static GameEntry Create(string title, string serial, string launchPath) =>
-        new(AppId.From("rpcs3:" + launchPath), title, serial, launchPath);
+    public static GameEntry Create(string title, string serial, string launchPath, string source = GameSources.Rpcs3) =>
+        new(AppId.From(source + ":" + launchPath), title, serial, launchPath, source);
+}
+
+/// <summary>The emulators games come from. The text is what clients see in the game list.</summary>
+public static class GameSources
+{
+    public const string Rpcs3 = "rpcs3";
+    public const string Pcsx2 = "pcsx2";
+
+    /// <summary>The order the sources are shown in, and their display names.</summary>
+    public static readonly IReadOnlyList<(string Id, string Name)> All = [(Rpcs3, "RPCS3"), (Pcsx2, "PCSX2")];
 }
 
 public enum GameImage
@@ -24,6 +35,9 @@ public enum GameImage
 /// <summary>Finds games and starts them. The real one reads RPCS3's game list; tests use a fake.</summary>
 public interface IGameLibrary
 {
+    /// <summary>Which emulator this reads games for (see <see cref="GameSources"/>).</summary>
+    string Source { get; }
+
     /// <summary>True when the emulator was found, so there is something to list and launch.</summary>
     bool Available { get; }
 
@@ -35,6 +49,12 @@ public interface IGameLibrary
     byte[]? GetImage(GameEntry game, GameImage image);
 
     bool Launch(GameEntry game);
+
+    /// <summary>
+    /// A sentence saying why this game cannot start right now (for example the emulator has no BIOS to run
+    /// it with), or null when nothing is known to be wrong.
+    /// </summary>
+    string? LaunchProblem(GameEntry game);
 }
 
 /// <summary>Which games were played lately, by launch path. Survives restarts.</summary>
@@ -45,7 +65,7 @@ public interface IGamesStateStore
     void SaveRecent(IReadOnlyList<string> launchPaths);
 }
 
-public sealed record GameListItem(string Id, string Title, string Serial);
+public sealed record GameListItem(string Id, string Title, string Serial, string Source);
 
 public sealed record GameList(IReadOnlyList<GameListItem> Games, IReadOnlyList<string> Recent);
 
@@ -85,6 +105,15 @@ public sealed class GamesService
 
     public string? UnavailableReason => _library.UnavailableReason;
 
+    /// <summary>Forget the cached game list, so the next look reads it again (RPCS3 was moved or changed).</summary>
+    public void Invalidate()
+    {
+        lock (_gate)
+        {
+            _games = null;
+        }
+    }
+
     public GameList GetList()
     {
         lock (_gate)
@@ -94,7 +123,7 @@ public sealed class GamesService
                 .OrderBy(g => TextSort.Key(g.Title), StringComparer.Ordinal)
                 .ThenBy(g => g.Title, StringComparer.Ordinal)
                 .ThenBy(g => g.Id, StringComparer.Ordinal)
-                .Select(g => new GameListItem(g.Id, g.Title, g.Serial))
+                .Select(g => new GameListItem(g.Id, g.Title, g.Serial, g.Source))
                 .ToList();
 
             var recent = _recent
@@ -127,6 +156,9 @@ public sealed class GamesService
         return game is null ? null : _library.GetImage(game, image);
     }
 
+    /// <summary>Why this game cannot be started, if the emulator is known to be unable to (see <see cref="IGameLibrary.LaunchProblem"/>).</summary>
+    public string? ProblemFor(string? id) => Find(id) is { } game ? _library.LaunchProblem(game) : null;
+
     public LaunchResult Launch(string? id)
     {
         var game = Find(id);
@@ -136,7 +168,9 @@ public sealed class GamesService
         }
 
         var entry = AppEntry.Create(game.Title, game.LaunchPath);
-        if (!_library.Launch(game))
+
+        // Starting would only open the emulator on an error, so do not.
+        if (_library.LaunchProblem(game) is not null || !_library.Launch(game))
         {
             return new LaunchResult(LaunchOutcome.Failed, entry);
         }

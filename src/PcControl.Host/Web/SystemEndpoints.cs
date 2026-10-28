@@ -1,4 +1,5 @@
 using PcControl.Core.Actions;
+using PcControl.Core.Capture;
 using PcControl.Core.Config;
 using PcControl.Core.Performance;
 
@@ -23,6 +24,7 @@ internal static class SystemEndpoints
 
         secured.MapGet("/performance", GetPerformance);
         secured.MapGet("/processes", GetProcesses);
+        secured.MapGet("/processes/{id}/preview", GetProcessPreview);
         secured.MapPost("/processes/{id}/close", CloseProcess);
         secured.MapPost("/processes/{id}/focus", FocusProcess);
     }
@@ -165,7 +167,35 @@ internal static class SystemEndpoints
             return Disabled();
         }
 
-        return Results.Json(processes.GetList().Select(p => new { id = p.Id, name = p.Name, title = p.Title }));
+        return Results.Json(processes.GetList().Select(p => new { id = p.Id, name = p.Name, title = p.Title, minimized = p.Minimized }));
+    }
+
+    private static IResult GetProcessPreview(string id, int? width, AppConfig config, ProcessService processes, IJpegEncoder encoder, RemoteControlState state, HttpContext context)
+    {
+        if (!config.Features.ProcessKiller)
+        {
+            return Disabled();
+        }
+
+        // A window's picture shows what is on the PC, so it follows the same kill switch as the rest.
+        if (ApiEndpoints.RefusedWhilePaused(state) is { } paused)
+        {
+            return paused;
+        }
+
+        var (outcome, frame) = processes.Preview(id, Math.Clamp(width ?? 480, 160, 960));
+        if (outcome == ProcessOutcome.Unknown)
+        {
+            return Results.Json(new { error = "unknown_process" }, statusCode: StatusCodes.Status404NotFound);
+        }
+
+        if (frame is null)
+        {
+            return Results.Json(new { error = "no_image" }, statusCode: StatusCodes.Status404NotFound);
+        }
+
+        context.Response.Headers.CacheControl = "no-store";
+        return Results.File(encoder.Encode(frame, 70), "image/jpeg");
     }
 
     private static IResult CloseProcess(string id, CloseRequest? request, AppConfig config, ProcessService processes, RemoteControlState state, HttpContext context, ILogger<ProcessService> logger)

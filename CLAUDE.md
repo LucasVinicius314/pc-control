@@ -48,6 +48,12 @@ dotnet test
 * Controller UI layout: `scrollIntoView` also scrolls `overflow:hidden` ancestors, which made the whole page jump sideways. Use `overflow: clip` on the outer containers, and `scroll-padding` so the focused item is never under the tabs or the hints bar. Steam's controller settings can also turn buttons into key presses; the page ignores the keyboard once it has seen a controller.
 * Performance: protected programs refuse to be opened, and every refusal is an exception (thousands in a debugger). The sampler asks once per program and remembers who refused.
 * The shell tool often fails on long heredocs; write big edits to a script file with the Write tool and run that.
+* The user usually has PcControl running (and "Start with Windows" points at the Debug exe), which locks `bin\Debug\...\PcControl.exe`, so a plain build fails to copy it. Never kill their copy; build to another folder (`dotnet build src/PcControl.Host --artifacts-path <dir>`) and run that one. `tests\PcControl.Tests\bin\...\PcControl.exe` is only a copy the test build made, not the app to run.
+* To look at a controller UI change, run the built exe with `PCCONTROL_DATA_DIR` set to an empty folder and a `config.json` with another `port`, read the PIN from its window, pair over `/api/pair`, and screenshot `/couch.html` in headless Chrome (1920x1080) with the section stored in `localStorage`. It shows real data from the PC.
+* Controller UI scrolling is our own (`couch/smoothscroll.ts`): the browser's smooth `scrollIntoView` is switched off by Windows' "animation effects" setting and cut short by every key press.
+* Controller batteries: XInput's `XInputGetBatteryInformation` calls a Bluetooth Xbox controller "disconnected". Windows' gamepad API (`Windows.Gaming.Input.Gamepad`, `TryGetBatteryReport`) has the real percentage, but its list fills a moment after the first look, so the watcher retries soon when a reading is missing.
+* Window pictures use `PrintWindow` with `PW_RENDERFULLCONTENT` (the constant is not in CsWin32's enum, so it is cast). Minimised windows draw nothing; an all-black result is treated as no picture.
+* Emulators: PCSX2's BIOS folder in `PCSX2.ini` is relative to its data folder, so moving PCSX2 breaks it quietly; the app checks and says so. PS2 covers are downloaded once by serial from a public GitHub collection into PCSX2's `covers` folder (`games.pcsx2DownloadCovers` turns it off). Keep outgoing network calls rare and documented.
 
 ## Roadmap
 

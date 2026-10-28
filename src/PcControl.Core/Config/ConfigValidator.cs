@@ -60,6 +60,11 @@ public static class ConfigValidator
             errors.Add($"couch.seeThrough must be between 0 and 0.7 (was {config.Couch.SeeThrough}).");
         }
 
+        if (string.IsNullOrWhiteSpace(config.Games.Pcsx2Path) || config.Games.Pcsx2Path.Length > 260)
+        {
+            errors.Add("games.pcsx2Path must be \"auto\" or a path of at most 260 characters.");
+        }
+
         var launcher = config.Launcher;
         if (!string.Equals(launcher.PowerToysRunShortcut?.Trim(), "auto", StringComparison.OrdinalIgnoreCase)
             && !Input.Shortcut.TryParse(launcher.PowerToysRunShortcut, out _))
